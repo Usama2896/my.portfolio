@@ -1,7 +1,7 @@
 extends RefCounted
 # All geometry is generated locally; collision segments match each visible frame.
-const TYPES = ["ring", "hexagon", "zigzag", "precision", "triple", "corridor", "tunnel", "u_tunnel", "kz"]
-const NAMES = ["Circular Ring", "Hexagon", "Zig Zag", "Precision Gate", "Triple Ring", "Multi Frame Corridor", "Tunnel", "U-Tunnel", "KZ"]
+const TYPES = ["ring", "hexagon", "zigzag", "precision", "triple", "corridor", "tunnel", "u_tunnel", "kz", "triangle", "square", "diamond", "arch", "ladder", "dive", "hurdle", "flag"]
+const NAMES = ["Circular Ring", "Hexagon", "Zig Zag", "Precision Gate", "Triple Ring", "Multi Frame Corridor", "Tunnel", "U-Tunnel", "KZ", "Triangle Gate", "Square Gate", "Diamond Gate", "Arch Gate", "Ladder Gate", "Dive Ring", "Hurdle", "Flag Turn"]
 
 static func material(color: Color) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
@@ -42,19 +42,32 @@ static func sections(data: Dictionary) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var count := 1
 	if kind in ["tunnel","corridor","u_tunnel"]: count = 5
-	if kind == "zigzag": count = 3
+	if kind == "zigzag": count = 5
 	for i in range(count):
 		var x := 0.0
 		var z := -depth*float(i)/maxi(1,count-1)
-		if kind == "zigzag": x = sin(float(i)*PI/2)*0.9
+		if kind == "zigzag": x = float(data.width)*0.35*(1 if i%2==0 else -1)
+		if kind == "flag": x = float(data.width)*0.35
 		if kind == "u_tunnel": x = sin(float(i)*PI/4)*1.2
 		out.append({"center":Vector3(x,0,z),"kind":kind})
 	return out
 
 static func polygon(kind: String, width: float, height: float) -> PackedVector2Array:
 	var points := PackedVector2Array()
-	var count := 32 if kind in ["ring","triple","tunnel","u_tunnel"] else 6
-	if kind in ["precision","zigzag","corridor","kz"]:
+	var count := 32 if kind in ["ring","triple","tunnel","u_tunnel","dive"] else 6
+	if kind == "triangle":
+		return PackedVector2Array([Vector2(-width/2,-height/2),Vector2(width/2,-height/2),Vector2(0,height/2)])
+	if kind == "diamond":
+		return PackedVector2Array([Vector2(0,-height/2),Vector2(width/2,0),Vector2(0,height/2),Vector2(-width/2,0)])
+	if kind == "arch":
+		points.append(Vector2(-width/2,-height/2))
+		points.append(Vector2(width/2,-height/2))
+		points.append(Vector2(width/2,0))
+		for i in range(1,17):
+			var angle := PI*i/16.0
+			points.append(Vector2(cos(angle)*width/2,sin(angle)*height/2))
+		return points
+	if kind in ["precision","zigzag","corridor","kz","square","ladder","hurdle","flag"]:
 		return PackedVector2Array([Vector2(-width/2,-height/2),Vector2(width/2,-height/2),Vector2(width/2,height/2),Vector2(-width/2,height/2)])
 	for i in range(count):
 		var angle := TAU*i/count + (PI/6 if count==6 else 0.0)
@@ -62,6 +75,8 @@ static func polygon(kind: String, width: float, height: float) -> PackedVector2A
 	return points
 
 static func holes(data: Dictionary) -> Array[Vector2]:
+	if data.get("type","") == "ladder":
+		return [Vector2(0,-float(data.opening_height)/3),Vector2.ZERO,Vector2(0,float(data.opening_height)/3)]
 	if data.get("type","") == "triple":
 		var w: float = data.width
 		var h: float = data.opening_height
@@ -75,6 +90,8 @@ static func fits(data: Dictionary, point: Vector3, section: int, radius := 0.18)
 	if data.get("type","") == "triple":
 		width *= 0.60
 		height *= 0.60
+	if data.get("type","") in ["zigzag","flag"]: width *= 0.5
+	if data.get("type","") == "ladder": height /= 3.0
 	for offset in holes(data):
 		var poly := polygon(data.get("type","ring"),width,height)
 		var p := Vector2(point.x-center.x,point.y-center.y)-offset
@@ -92,6 +109,7 @@ static func build(parent: Node3D, data: Dictionary, index: int) -> Node3D:
 	gate.position = Vector3(data.x,data.height,data.z)
 	gate.rotation_degrees.y = data.yaw_degrees
 	var kind: String = data.get("type","ring")
+	if kind == "dive": gate.rotation_degrees.x = -90
 	var color := Color("268575")
 	if kind in ["kz","tunnel"]: color = Color("bb6339")
 	elif kind in ["precision","zigzag","triple"]: color = Color("bda13c")
@@ -100,9 +118,21 @@ static func build(parent: Node3D, data: Dictionary, index: int) -> Node3D:
 	var sec := sections(data)
 	for s in range(sec.size()):
 		var c: Vector3 = sec[s].center
+		if kind in ["zigzag","flag"]:
+			var pole_height := float(data.height)+height/2
+			var pole := box(gate,Vector3(0,pole_height/2-float(data.height),c.z),Vector3(0.10,pole_height,0.10),color)
+			pole.name = "SlalomPole%02d" % s
+			box(gate,Vector3(0,-float(data.height)+0.04,c.z),Vector3(0.55,0.08,0.55),Color("344943"))
+			if kind == "flag": box(gate,Vector3(0.28,height/2-0.3,c.z),Vector3(0.5,0.5,0.025),color,false)
+			continue
+		if kind == "hurdle":
+			beam(gate,Vector3(-width/2,-height/2,0),Vector3(width/2,-height/2,0),0.10,color)
+			for side in [-1,1]:
+				beam(gate,Vector3(side*width/2,-float(data.height),0),Vector3(side*width/2,-height/2+0.2,0),0.10,color)
+			continue
 		for offset in holes(data):
 			var scale_ := 0.60 if kind == "triple" else 1.0
-			var poly := polygon(kind,width*scale_,height*scale_)
+			var poly := polygon(kind,width*scale_,height*scale_/3 if kind=="ladder" else height*scale_)
 			for j in range(poly.size()):
 				var a := Vector3(poly[j].x+offset.x,poly[j].y+offset.y,0)+c
 				var n := poly[(j+1)%poly.size()]
@@ -129,12 +159,21 @@ static func build(parent: Node3D, data: Dictionary, index: int) -> Node3D:
 						if child is StaticBody3D:
 							for collision in child.get_children():
 								if collision is CollisionShape3D and collision.shape is ConcavePolygonShape3D: collision.shape.backface_collision = true
+		if kind == "dive":
+			var stand := Node3D.new()
+			gate.add_child(stand)
+			stand.rotation_degrees.x = 90
+			for side in [-1,1]:
+				beam(stand,Vector3(side*width/2,0,0),Vector3(side*width/2,-float(data.height),0),0.06,Color("344943"))
+			continue
 		# Supports attach to the actual opening shape, not an invisible rectangle.
 		var support_x := width*0.5
 		var support_y := -height*0.5
 		if kind in ["ring","tunnel","u_tunnel"]:
 			support_x = width*0.35355
 			support_y = -height*0.35355
+		if kind == "diamond":
+			support_y = 0
 		if kind == "hexagon":
 			support_x = width*0.433
 			support_y = -height*0.25
@@ -166,3 +205,19 @@ static func build(parent: Node3D, data: Dictionary, index: int) -> Node3D:
 	sign_.modulate = Color("f5f1dc")
 	gate.add_child(sign_)
 	return gate
+
+static func apply_preset(data: Dictionary, kind: String) -> void:
+	data.type = kind
+	data.name = NAMES[TYPES.find(kind)]
+	data.width = 2.4
+	data.opening_height = 2.4
+	data.height = 2.0
+	data.depth = 3.0
+	match kind:
+		"zigzag": data.depth = 8.0
+		"precision": data.width = 1.5; data.opening_height = 2.2
+		"triple": data.width = 3.6; data.opening_height = 3.6; data.height = 2.3
+		"ladder": data.opening_height = 6.0; data.height = 3.2
+		"tunnel", "u_tunnel": data.opening_height = 2.0; data.height = 1.5
+		"dive": data.height = 4.0
+		"hurdle": data.height = 1.8; data.opening_height = 2.4

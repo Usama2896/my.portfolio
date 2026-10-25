@@ -2,12 +2,36 @@ extends Control
 var host: Node
 var editable := false
 var dragging := false
+var drag_bounds := Rect2(-26,-30,40,46)
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP if editable else Control.MOUSE_FILTER_IGNORE
 
+func view_bounds() -> Rect2:
+	if dragging: return drag_bounds
+	var minimum := Vector2(-18,-22)
+	var maximum := Vector2(6,8)
+	for d in host.course.gates:
+		var point := Vector2(d.x,d.z)
+		minimum = minimum.min(point-Vector2(4,4))
+		maximum = maximum.max(point+Vector2(4,4))
+	if not editable and is_instance_valid(host.drone):
+		var position_ := Vector2(host.drone.position.x,host.drone.position.z)
+		minimum = minimum.min(position_-Vector2(3,3))
+		maximum = maximum.max(position_+Vector2(3,3))
+	var extent := maximum-minimum
+	var aspect := maxf(1,size.x-36)/maxf(1,size.y-36)
+	if extent.x/extent.y<aspect: extent.x = extent.y*aspect
+	else: extent.y = extent.x/aspect
+	return Rect2((minimum+maximum-extent)/2,extent)
+
 func project_point(x: float, z: float) -> Vector2:
-	return Vector2(18+(x+26)/40*(size.x-36),18+(z+30)/46*(size.y-36))
+	var bounds := view_bounds()
+	return Vector2(18+(x-bounds.position.x)/bounds.size.x*(size.x-36),18+(z-bounds.position.y)/bounds.size.y*(size.y-36))
+
+func unproject_point(point: Vector2) -> Vector2:
+	var bounds := view_bounds()
+	return bounds.position+Vector2((point.x-18)/maxf(1,size.x-36)*bounds.size.x,(point.y-18)/maxf(1,size.y-36)*bounds.size.y)
 
 func _draw() -> void:
 	if not is_instance_valid(host): return
@@ -45,7 +69,9 @@ func panel_style() -> StyleBoxFlat:
 func _gui_input(event: InputEvent) -> void:
 	if not editable: return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		var bounds_before := view_bounds()
 		dragging = event.pressed
+		if dragging: drag_bounds = bounds_before
 		if dragging:
 			var nearest := -1
 			var distance_ := 22.0
@@ -60,8 +86,9 @@ func _gui_input(event: InputEvent) -> void:
 			else: dragging = false
 	if event is InputEventMouseMotion and dragging:
 		var d: Dictionary = host.course.gates[host.selected]
-		d.x = snappedf(clampf((event.position.x-18)/(size.x-36)*40-26,-25,12),0.1)
-		d.z = snappedf(clampf((event.position.y-18)/(size.y-36)*46-30,-29,14),0.1)
+		var position_ := unproject_point(event.position)
+		d.x = snappedf(clampf(position_.x,-95,95),0.1)
+		d.z = snappedf(clampf(position_.y,-95,95),0.1)
 		host.rebuild_course()
 		queue_redraw()
 		# Numeric fields refresh when the drag ends.

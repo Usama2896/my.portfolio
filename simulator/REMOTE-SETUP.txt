@@ -1,0 +1,73 @@
+DTC FLIGHT LAB 0.3 — USB REMOTE GUIDE
+
+A. COPY THE APP TO THE GAMING PC
+1. Download the latest Windows ZIP. Copy the whole ZIP onto your USB drive.
+2. On the gaming PC, copy that ZIP from USB to the Desktop.
+3. Right-click the ZIP, choose Extract All, then Extract.
+4. Open the new FPVTrainer folder. Double-click FPVTrainer.exe.
+Keep all extracted files together. A shortcut alone is not the software.
+No VS Code, Godot, Steam or Internet is needed to run it.
+
+B. CONNECT YOUR RADIOMASTER
+5. Turn on your Pocket or TX16/TX16S.
+6. Use a USB cable that carries DATA. A charging-only cable will not work.
+7. Plug the cable into the radio's USB/data port and the PC. Some models have separate charging and data ports; check the port label or manual.
+8. If the radio asks for a USB mode, choose USB Joystick / HID. Do not choose storage, SD card, or serial mode. Names vary by firmware.
+9. To check Windows: press Windows key + R, type joy.cpl, then Enter. Select the radio and open Properties. Moving the sticks should move the indicators. Close that window afterward.
+If it is not listed, try a data cable and another USB port, and check joystick mode on the radio. Do not download random drivers.
+
+C. MAP THE FOUR STICK MOVEMENTS
+10. In the simulator open Drone & Controls. Switch ON Use USB controller instead of keyboard.
+11. The usual Mode 2 arrangement is:
+    RIGHT stick left/right = ROLL (bank)
+    RIGHT stick up/down = PITCH (nose tilt)
+    LEFT stick left/right = YAW (turn left/right in place)
+    LEFT stick up/down = THROTTLE (motor power)
+If your radio uses a different stick mode, map the movements you actually use.
+12. Click Map roll. Move ONLY its stick fully left and right a few times. Let it return to centre. Click Confirm axis travel & centre.
+13. Repeat Map pitch: fully forward/back, return to centre, Confirm.
+14. Repeat Map yaw: fully left/right, return to centre, Confirm.
+15. Repeat Map throttle: fully down/up a few times, then put it fully DOWN. Click Confirm. Throttle does not need to spring to centre.
+If it says travel is too small, repeat slowly through both full ends.
+
+D. CHECK DIRECTION BEFORE FLYING
+16. Watch the live numbers under the mapping buttons:
+    Roll: stick RIGHT should show about +1; LEFT about -1.
+    Pitch: stick FORWARD should show about -1; BACK about +1.
+    Yaw: stick RIGHT should show about +1; LEFT about -1.
+    Throttle: fully DOWN should show about -1; fully UP about +1.
+17. If a direction is opposite, toggle Invert beside THAT movement.
+18. With roll/pitch/yaw centred, those values should be near 0. If small movements appear, slightly increase Stick dead zone.
+Settings save automatically for the detected device. Recheck them when changing radio.
+
+E. FIRST REMOTE FLIGHT
+19. Put throttle fully DOWN. Go to Fly and click Start practice.
+20. Remote practice uses Acro: it does NOT automatically level or hold height. Increase throttle slowly until the drone lifts, then use very small stick inputs.
+21. To turn while staying in one spot: keep the RIGHT stick centred and gently move the LEFT stick left/right. This is yaw. A tilted drone may keep moving; turning does not brake existing motion.
+22. If left/right turn is reversed, pause, open Drone & Controls and toggle YAW Invert. If the drone banks instead of turning, the roll/yaw mappings are mixed up: remap them.
+23. Press Enter to pause; R restarts; Esc opens the menu. F11 toggles full screen. Lower throttle before resuming or restarting.
+A connection change pauses flight. Reconnect, check the live readings, lower throttle, then restart.
+
+KEYBOARD ALTERNATIVE
+Switch OFF Use USB controller instead of keyboard. Start keyboard-friendly practice.
+Up/Down: climb/descend with automatic height assistance.
+W/S: tilt forward/back. A/D: bank left/right.
+Q or Left arrow: turn LEFT (counterclockwise viewed from above).
+E or Right arrow: turn RIGHT (clockwise viewed from above).
+The heading number (HDG) changes when you turn. There is no separate camera gimbal; the FPV camera turns with the drone.
+
+COURSE CHANGES
+In Course Editor, select a station, then choose its type. Zig Zag uses only vertical poles; fly alternately on the highlighted side of each pole.
+Select station 02 or later and change Gap from previous (m). With Move later stations together ON, the later route moves with it; OFF changes only that station.
+Whole-course spacing expands/contracts all station positions without resizing obstacles.
+Gaps measure horizontal entry-centre distance, NOT empty edge-to-edge space. 1 metre is about 3.28 feet. Save course locally when finished.
+Saved courses take priority over the new bundled course. To see the updated supplied Zig Zag, use Restore supplied course. Export a custom course first if you want to keep it.
+
+IF SOMETHING DOES NOT WORK
+No movement in Windows joy.cpl: check cable, data port and radio USB mode.
+Windows sees the radio but the app does not: close/reopen the app; confirm USB input is ON; note the detected device name and exact message.
+Start blocked by throttle: check throttle mapping/inversion until LOW reads -1.
+Drone tilts instead of turning: map YAW to horizontal motion of the intended yaw stick.
+App runs slowly: switch shadows OFF in Drone & Controls.
+Windows warning: note the exact text; do not disable protection.
+The app is a development release. Real Pocket/TX16 USB testing and Windows runtime testing remain pending.

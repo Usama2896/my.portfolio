@@ -26,6 +26,7 @@ var impact_speed := 0.0
 var contact_cooldown := 0.0
 var status := "Welcome. Choose a practice flight or configure your course."
 var selected := 0
+var move_following := true
 var module := "Fly"
 var in_flight := false
 var assessment := false
@@ -113,6 +114,8 @@ func valid_course(value: Variant) -> bool:
 		if not d.get("type","") in O.TYPES or not d.get("name") is String: return false
 		if d.width<0.6 or d.width>8 or d.opening_height<0.6 or d.opening_height>8 or d.depth<0.5 or d.depth>8: return false
 		if absf(d.x)>100 or absf(d.z)>100 or d.height<0.5 or d.height>12: return false
+	var scale_ = value.get("spacing_scale",1)
+	if not (scale_ is float or scale_ is int) or not is_finite(float(scale_)) or float(scale_)<0.25 or float(scale_)>4: return false
 	var bonus = value.get("bonus_seconds_per_point")
 	if bonus != null and (not (bonus is float or bonus is int) or not is_finite(float(bonus)) or float(bonus)<0 or float(bonus)>60): return false
 	if int(value.get("laps",0))<1 or int(value.get("laps",0))>10: return false
@@ -250,7 +253,7 @@ func build_interface() -> void:
 	notice.offset_right = -20
 	notice.offset_top = -35
 	overlay.add_child(notice)
-	version_label = label_("OFFLINE  /  V0.2   •   APPROXIMATE COURSE",12,"e0ead7")
+	version_label = label_("OFFLINE  /  V0.3   •   APPROXIMATE COURSE",12,"e0ead7")
 	version_label.position = Vector2(450,96)
 	overlay.add_child(version_label)
 	hud = PanelContainer.new()
@@ -311,7 +314,7 @@ func fly_menu() -> void:
 	button_("Start Acro assessment",func(): start_flight(true))
 	paragraph("PRACTICE\nAuto-level and altitude assistance for keyboard users. Unlimited retries; no competition score.")
 	paragraph("ASSESSMENT\nAcro only. 3 laps, 2:40 qualifying time, 3:20 cutoff. First crash: −20; second crash: disqualification.")
-	paragraph("W/S pitch  •  A/D roll  •  Q/E turn\n↑ / ↓ climb & descend in assisted practice\nEnter pause  •  R restart  •  Esc menu")
+	paragraph("W/S tilt  •  A/D bank  •  Q/E or ←/→ turn in place\n↑ / ↓ climb & descend in assisted practice\nEnter pause  •  R restart  •  Esc menu")
 	paragraph("Course dimensions are approximate. Flight dynamics are a tunable simulation, not yet calibrated to your drone.","c0b38f")
 
 func field(text: String, value: float, low: float, high: float, step: float, changed: Callable) -> SpinBox:
@@ -347,11 +350,25 @@ func editor_menu() -> void:
 	var type_input := OptionButton.new()
 	for n in O.NAMES: type_input.add_item(n)
 	type_input.select(O.TYPES.find(data.type))
-	type_input.item_selected.connect(func(i): data.type = O.TYPES[i]; data.name = O.NAMES[i]; rebuild_course(); show_module(module))
+	type_input.item_selected.connect(func(i): O.apply_preset(data,O.TYPES[i]); rebuild_course(); show_module(module))
 	content.add_child(type_input)
-	for spec in [["X", "x",-25,12,0.1],["Z", "z",-29,14,0.1],["Centre height", "height",0.5,12,0.1],["Opening width", "width",0.6,8,0.1],["Opening height", "opening_height",0.6,8,0.1],["Depth", "depth",0.5,8,0.1],["Heading °", "yaw_degrees",-180,180,5]]:
+	for spec in [["X", "x",-95,95,0.1],["Z", "z",-95,95,0.1],["Centre height", "height",0.5,12,0.1],["Opening width", "width",0.6,8,0.1],["Opening height", "opening_height",0.6,8,0.1],["Depth", "depth",0.5,8,0.1],["Heading °", "yaw_degrees",-180,180,5]]:
 		var key: String = spec[1]
 		field(spec[0],data[key],spec[2],spec[3],spec[4],func(v): data[key] = v; rebuild_course())
+	paragraph("SPACING BETWEEN STATIONS", "79e5c2")
+	if selected>0:
+		field("Gap from previous (m)",station_gap(selected),0.5,80,0.1,func(v):
+			if not set_station_gap(v): show_module.call_deferred(module))
+		var following := CheckButton.new()
+		following.text = "Move later stations together"
+		following.button_pressed = move_following
+		following.toggled.connect(func(v): move_following = v)
+		content.add_child(following)
+	else: paragraph("Select station 02 or later to change its gap from the previous station.")
+	field("Whole-course spacing ×",float(course.get("spacing_scale",1)),0.25,4,0.05,func(v):
+		if not scale_spacing(v): show_module.call_deferred(module))
+	paragraph("Gaps are horizontal distances between station entry centres, not clearances between their edges. Scaling keeps obstacle sizes unchanged.")
+	button_("Save course locally",save_course,null,true)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation",8)
 	content.add_child(row)
@@ -390,7 +407,7 @@ func focus_gate() -> void:
 func add_gate() -> void:
 	if course.gates.size()>=80: status = "Course limit: 80 stations."; return
 	var d: Dictionary = course.gates[selected].duplicate(true)
-	d.x = clampf(float(d.x)+3,-25,12)
+	d.x = clampf(float(d.x)+3,-95,95)
 	d.name = "New Ring"
 	d.type = "ring"
 	course.gates.append(d)
@@ -401,7 +418,7 @@ func add_gate() -> void:
 func duplicate_gate() -> void:
 	if course.gates.size()>=80: return
 	var d: Dictionary = course.gates[selected].duplicate(true)
-	d.x = clampf(float(d.x)+2,-25,12)
+	d.x = clampf(float(d.x)+2,-95,95)
 	course.gates.insert(selected+1,d)
 	selected += 1
 	rebuild_course()
@@ -500,7 +517,7 @@ func controls_menu() -> void:
 	radio.button_pressed = use_radio
 	radio.toggled.connect(func(v): use_radio = v; save_settings())
 	content.add_child(radio)
-	paragraph("Connect the radio in USB Joystick mode. Calibrate one axis at a time: move fully both ways, return roll/pitch/yaw to centre, then confirm. Throttle should be at its lowest-power end before flight.")
+	paragraph("Connect the radio in USB Joystick mode. Right stick: roll/pitch. Left stick: yaw/throttle (Mode 2). Calibrate one axis at a time: move fully both ways, return roll/pitch/yaw to centre, then confirm. Throttle should be at its lowest-power end before flight.")
 	for i in range(4):
 		var row := HBoxContainer.new()
 		content.add_child(row)
@@ -511,9 +528,12 @@ func controls_menu() -> void:
 		invert.toggled.connect(func(v): inversions[i] = v; save_settings())
 		row.add_child(invert)
 		var readout := label_("",12,"79e5c2")
+		readout.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		content.add_child(readout)
 		axis_labels.append(readout)
 	button_("Confirm axis travel & centre",finish_calibration)
+	paragraph("Correct live values: roll RIGHT +1; pitch FORWARD −1; yaw RIGHT +1; throttle LOW −1 and HIGH +1. Toggle Invert if a channel is reversed.")
+	button_("Open beginner USB remote guide",show_remote_help)
 	paragraph("Mappings are saved for the currently connected device. Physical RadioMaster testing is still pending. Assessment always uses Acro and calm conditions.","c0b38f")
 
 func begin_calibration(index: int) -> void:
@@ -645,7 +665,7 @@ func export_results() -> void:
 func reset_run() -> void:
 	drone.freeze = true
 	var first := gates[0]
-	drone.transform = Transform3D(first.basis,first.to_global(Vector3(0,0,4)))
+	drone.transform = Transform3D(Basis(Vector3.UP,deg_to_rad(float(course.gates[0].yaw_degrees))),first.to_global(Vector3(0,0,4)))
 	drone.linear_velocity = Vector3.ZERO
 	drone.angular_velocity = Vector3.ZERO
 	previous_position = drone.position
@@ -740,12 +760,12 @@ func _physics_process(delta: float) -> void:
 		contact_cooldown = maxf(0,contact_cooldown-delta)
 		var roll := key_axis(KEY_D,KEY_A)
 		var pitch := key_axis(KEY_S,KEY_W)
-		var yaw := key_axis(KEY_Q,KEY_E)
+		var yaw := clampf(key_axis(KEY_Q,KEY_E)+key_axis(KEY_LEFT,KEY_RIGHT),-1,1)
 		var lift := key_axis(KEY_UP,KEY_DOWN)
 		if use_radio:
 			roll = radio_axis(0)
 			pitch = radio_axis(1)
-			yaw = radio_axis(2)
+			yaw = -radio_axis(2) # Positive live yaw input means turn RIGHT, clockwise.
 			throttle = clampf((radio_axis(3)+1)/2,0,1)
 		if assisted and not assessment and not use_radio:
 			# Keyboard learning mode: velocity-based lift and proportional attitude hold.
@@ -769,8 +789,8 @@ func _physics_process(delta: float) -> void:
 	if in_flight:
 		var data: Dictionary = course.gates[next_gate]
 		target_label.text = "%02d / %02d   %s    ·    LAP %d / %d" % [next_gate+1,course.gates.size(),data.name.to_upper(),lap,course.laps]
-		telemetry.text = "%s  %05.1fs     |     %02d km/h     |     ALT %.1fm     |     POWER %d%%     |     CRASH %d" % ["TIME" if started else "READY",elapsed,int(drone.linear_velocity.length()*3.6),drone.position.y,int(throttle*100),crashes]
-		flight_status.text = ("ACRO ASSESSMENT" if assessment else "ASSISTED PRACTICE" if assisted and not use_radio else "ACRO PRACTICE")+"    ·    Enter pause  /  R restart  /  Esc menu"+("    PAUSED" if not active else "")
+		telemetry.text = "%s  %05.1fs     |     %02d km/h     |     ALT %.1fm     |     HDG %03d°     |     POWER %d%%     |     CRASH %d" % ["TIME" if started else "READY",elapsed,int(drone.linear_velocity.length()*3.6),drone.position.y,int(fposmod(-rad_to_deg(drone.rotation.y),360)),int(throttle*100),crashes]
+		flight_status.text = ("ACRO ASSESSMENT" if assessment else "ASSISTED PRACTICE" if assisted and not use_radio else "ACRO PRACTICE")+"    ·    Q/E or ←/→: turn    /    A/D: bank    /    Enter: pause    /    Esc: menu"+("    PAUSED" if not active else "")
 		minimap.queue_redraw()
 		guide.visible = not finished
 		var center: Vector3 = O.sections(data)[section_index].center
@@ -835,7 +855,7 @@ func _process(_delta: float) -> void:
 	if not "--capture" in OS.get_cmdline_user_args(): return
 	capture_ticks += 1
 	if capture_ticks%15!=0: return
-	var names := ["home","editor","controls","results","flight","hexagon","zigzag","triple","corridor","tunnel","u-tunnel","kz"]
+	var names := ["home","editor","controls","results","flight","hexagon","zigzag","triple","corridor","tunnel","u-tunnel","kz","triangle","square","diamond","arch","ladder","dive","hurdle","flag"]
 	if capture_stage>0:
 		var img := get_viewport().get_texture().get_image()
 		img.save_png("/workspace/fpv-review-"+names[capture_stage-1]+".png")
@@ -851,7 +871,12 @@ func _process(_delta: float) -> void:
 		4: start_flight(false); active = false; drone.freeze = true
 		_:
 			leave_flight()
-			selected = [1,2,7,9,10,11,12][capture_stage-5]
+			if capture_stage<12:
+				selected = [1,2,7,9,10,11,12][capture_stage-5]
+			else:
+				selected = 0
+				O.apply_preset(course.gates[0],O.TYPES[capture_stage-3])
+				rebuild_course()
 			show_module("Course Editor")
 	capture_stage += 1
 
@@ -884,3 +909,73 @@ func _exit_tree() -> void:
 	if is_instance_valid(motor):
 		motor.stop()
 		motor.stream = null
+
+func station_gap(index: int) -> float:
+	if index<1 or index>=course.gates.size(): return 0
+	var a: Dictionary = course.gates[index-1]
+	var b: Dictionary = course.gates[index]
+	return Vector2(float(b.x)-float(a.x),float(b.z)-float(a.z)).length()
+
+func set_station_gap(distance_: float) -> bool:
+	if selected<1 or distance_<0.5 or distance_>80: return false
+	var previous: Dictionary = course.gates[selected-1]
+	var data: Dictionary = course.gates[selected]
+	var offset := Vector2(float(data.x)-float(previous.x),float(data.z)-float(previous.z))
+	var direction := offset.normalized()
+	if offset.length()<0.01:
+		var heading := deg_to_rad(float(previous.yaw_degrees))
+		direction = Vector2(-sin(heading),-cos(heading))
+	var shift := direction*distance_-offset
+	var stop: int = course.gates.size() if move_following else selected+1
+	for i in range(selected,stop):
+		var point := Vector2(course.gates[i].x,course.gates[i].z)+shift
+		if absf(point.x)>95 or absf(point.y)>95:
+			status = "Gap exceeds the 190 m editable area. Reduce spacing or move the layout."
+			return false
+	for i in range(selected,stop):
+		course.gates[i].x = float(course.gates[i].x)+shift.x
+		course.gates[i].z = float(course.gates[i].z)+shift.y
+	rebuild_course()
+	focus_gate()
+	status = "Gap set to %.1f m (%.1f ft). Save course to keep it." % [distance_,distance_*3.28084]
+	if module=="Course Editor": show_module.call_deferred(module)
+	return true
+
+func scale_spacing(value: float) -> bool:
+	if value<0.25 or value>4: return false
+	var factor := value/float(course.get("spacing_scale",1))
+	var anchor := Vector2(course.gates[0].x,course.gates[0].z)
+	var positions: Array[Vector2] = []
+	for d in course.gates:
+		var point := anchor+(Vector2(d.x,d.z)-anchor)*factor
+		if absf(point.x)>95 or absf(point.y)>95:
+			status = "Layout would exceed editable bounds. Choose a smaller spacing multiplier."
+			return false
+		positions.append(point)
+	for i in range(positions.size()):
+		course.gates[i].x = positions[i].x
+		course.gates[i].z = positions[i].y
+	course.spacing_scale = value
+	rebuild_course()
+	focus_gate()
+	status = "Whole-course spacing ×%.2f. Obstacle dimensions unchanged. Save to keep it." % value
+	if module=="Course Editor": show_module.call_deferred(module)
+	return true
+
+func show_remote_help() -> void:
+	var dialog := AcceptDialog.new()
+	dialog.title = "USB RadioMaster setup — beginner guide"
+	dialog.min_size = Vector2i(680,520)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(640,480)
+	dialog.add_child(scroll)
+	var text := Label.new()
+	text.custom_minimum_size.x = 610
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	text.text = FileAccess.get_file_as_string("res://data/remote-guide.txt")
+	scroll.add_child(text)
+	add_child(dialog)
+	dialog.confirmed.connect(dialog.queue_free)
+	dialog.canceled.connect(dialog.queue_free)
+	dialog.popup_centered()

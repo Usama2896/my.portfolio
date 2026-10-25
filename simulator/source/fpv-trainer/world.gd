@@ -40,8 +40,8 @@ static func build(root: Node3D) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 714
 	# White perimeter, path and start grid.
-	for x in [-24,10]: O.box(root,Vector3(x,-0.025,-8),Vector3(0.07,0.03,40),Color("c8c5a0"),false)
-	for z in [-28,12]: O.box(root,Vector3(-7,-0.025,z),Vector3(34,0.03,0.07),Color("c8c5a0"),false)
+	for x in [-38,22]: O.box(root,Vector3(x,-0.025,-8),Vector3(0.07,0.03,60),Color("c8c5a0"),false)
+	for z in [-38,22]: O.box(root,Vector3(-8,-0.025,z),Vector3(60,0.03,0.07),Color("c8c5a0"),false)
 	for i in range(8):
 		for j in range(2):
 			O.box(root,Vector3(-1.75+i*0.5,-0.015,2+j*0.5),Vector3(0.5,0.025,0.5),Color("ecedd7") if (i+j)%2==0 else Color("263d3a"),false)

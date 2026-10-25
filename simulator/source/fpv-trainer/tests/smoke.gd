@@ -29,7 +29,8 @@ func run() -> void:
 		data.depth = 3.0
 		if kind=="triple": data.width = 3.6; data.opening_height = 3.6
 		var hole: Vector2 = O.holes(data)[0]
-		check(O.fits(data,Vector3(hole.x,hole.y,0),0),kind+" centre is passable")
+		var center: Vector3 = O.sections(data)[0].center
+		check(O.fits(data,center+Vector3(hole.x,hole.y,0),0),kind+" centre is passable")
 		check(not O.fits(data,Vector3(20,20,0),0),kind+" rejects outside opening")
 		if kind in ["ring","hexagon"]:
 			check(not O.fits(data,Vector3(data.width*0.46,data.opening_height*0.46,0),0),kind+" rejects rectangle corner")

@@ -37,7 +37,7 @@
       "opening_height": 2.4,
       "yaw_degrees": 0,
       "type": "zigzag",
-      "depth": 2.6
+      "depth": 8.0
     },
     {
       "name": "Hexagon",
@@ -149,5 +149,6 @@
       "type": "kz",
       "depth": 2.6
     }
-  ]
+  ],
+  "spacing_scale": 1.0
 }
