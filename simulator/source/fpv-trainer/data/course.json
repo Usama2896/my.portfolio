@@ -13,7 +13,9 @@
       "height": 2.0,
       "width": 2.4,
       "opening_height": 2.4,
-      "yaw_degrees": 0
+      "yaw_degrees": 0,
+      "type": "ring",
+      "depth": 2.6
     },
     {
       "name": "Hexagon",
@@ -22,7 +24,9 @@
       "height": 2.0,
       "width": 2.4,
       "opening_height": 2.4,
-      "yaw_degrees": 0
+      "yaw_degrees": 0,
+      "type": "hexagon",
+      "depth": 2.6
     },
     {
       "name": "Zig Zag",
@@ -31,7 +35,9 @@
       "height": 2.0,
       "width": 2.4,
       "opening_height": 2.4,
-      "yaw_degrees": 0
+      "yaw_degrees": 0,
+      "type": "zigzag",
+      "depth": 2.6
     },
     {
       "name": "Hexagon",
@@ -40,16 +46,20 @@
       "height": 2.0,
       "width": 2.4,
       "opening_height": 2.4,
-      "yaw_degrees": 90
+      "yaw_degrees": 90,
+      "type": "hexagon",
+      "depth": 2.6
     },
     {
       "name": "Precision Gate",
       "x": -6.096,
       "z": -12.192,
       "height": 2.0,
-      "width": 2.4,
-      "opening_height": 2.4,
-      "yaw_degrees": 90
+      "width": 1.5,
+      "opening_height": 2.2,
+      "yaw_degrees": 90,
+      "type": "precision",
+      "depth": 2.6
     },
     {
       "name": "Circular Ring",
@@ -58,7 +68,9 @@
       "height": 2.0,
       "width": 2.4,
       "opening_height": 2.4,
-      "yaw_degrees": 180
+      "yaw_degrees": 180,
+      "type": "ring",
+      "depth": 2.6
     },
     {
       "name": "Hexagon",
@@ -67,16 +79,20 @@
       "height": 2.0,
       "width": 2.4,
       "opening_height": 2.4,
-      "yaw_degrees": 180
+      "yaw_degrees": 180,
+      "type": "hexagon",
+      "depth": 2.6
     },
     {
       "name": "Triple Ring",
       "x": -9.144,
       "z": 0,
-      "height": 2.0,
-      "width": 2.4,
-      "opening_height": 2.4,
-      "yaw_degrees": 180
+      "height": 2.3,
+      "width": 3.6,
+      "opening_height": 3.6,
+      "yaw_degrees": 180,
+      "type": "triple",
+      "depth": 2.6
     },
     {
       "name": "Circular Ring",
@@ -85,7 +101,9 @@
       "height": 2.0,
       "width": 2.4,
       "opening_height": 2.4,
-      "yaw_degrees": 90
+      "yaw_degrees": 90,
+      "type": "ring",
+      "depth": 2.6
     },
     {
       "name": "Multi Frame Corridor",
@@ -94,25 +112,31 @@
       "height": 2.0,
       "width": 2.4,
       "opening_height": 2.4,
-      "yaw_degrees": 90
+      "yaw_degrees": 90,
+      "type": "corridor",
+      "depth": 2.6
     },
     {
       "name": "Tunnel",
       "x": -15.24,
       "z": -6.096,
-      "height": 2.0,
+      "height": 1.5,
       "width": 2.4,
-      "opening_height": 2.4,
-      "yaw_degrees": 0
+      "opening_height": 2.0,
+      "yaw_degrees": 0,
+      "type": "tunnel",
+      "depth": 2.6
     },
     {
       "name": "U-Tunnel",
       "x": -15.24,
       "z": -12.192,
-      "height": 2.0,
+      "height": 1.5,
       "width": 2.4,
-      "opening_height": 2.4,
-      "yaw_degrees": 0
+      "opening_height": 2.0,
+      "yaw_degrees": 0,
+      "type": "u_tunnel",
+      "depth": 2.6
     },
     {
       "name": "KZ",
@@ -121,7 +145,9 @@
       "height": 2.0,
       "width": 2.4,
       "opening_height": 2.4,
-      "yaw_degrees": 0
+      "yaw_degrees": 0,
+      "type": "kz",
+      "depth": 2.6
     }
   ]
 }

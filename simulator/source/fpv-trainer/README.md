@@ -1,38 +1,78 @@
-# FPV Digital Training Course — initial prototype
+# DTC Flight Lab 0.2
 
-Independent, offline Godot 4.6.3 project using the Compatibility renderer. No Liftoff installation, account, online assets, or network connection is required at runtime.
+An independent offline FPV course simulator built with Godot 4.6.3, using its lightweight Compatibility renderer. No Liftoff, Steam, account, network connection, VS Code or Godot installation is required on the Windows machine running the export.
 
-## Current prototype
+## Four modules
 
-- FPV camera, gravity, thrust, and basic non-self-leveling rate control.
-- 13 named stations with approximate positions derived from the supplied layout.
-- All obstacles currently use rectangular placeholder frames, including named rings/tunnels. These are NOT accurate replicas yet.
-- Sequential directional gate checks, three laps, 200-second cutoff, basic impact threshold, first-crash deduction and second-crash disqualification.
-- Local JSONL session results. Time bonus is disabled until its incomplete rule is clarified.
-- Keyboard development controls and generic USB game-controller axes. F1–F4 map roll, pitch, yaw and throttle. Defaults assume a conventional joystick layout. Axis inversion, endpoint/dead-zone calibration, per-device profiles and device testing are still required. Keep the throttle low before starting.
+1. **Fly** — assisted keyboard practice and separate Acro assessment, pilot name, FPV camera, target indicator, minimap, speed/height/power/lap telemetry and generated motor audio.
+2. **Course Editor** — nine procedural obstacle types; select, add, duplicate, remove and reorder stations; edit dimensions, location, heading and depth; drag map markers; save locally; import/export course JSON; adjust laps, qualifying/cutoff times and bonus interval.
+3. **Drone & Controls** — camera FOV, mass, Acro rates, practice wind, keyboard assistance, motor sound, shadow toggle, USB axis assignment, endpoint/centre calibration, inversion, dead zone and device-specific saved mappings.
+4. **Training Results** — local pilot/session history and CSV export for records or USB transfer. Shows the latest 30 sessions; export includes all saved sessions.
 
-## Run source
+## First flight: no controller needed
 
-Open project.godot in Godot 4.6.3 and press F6/F5, or run:
+1. Extract the Windows ZIP with **Extract All**.
+2. Open the FPVTrainer folder and double-click **FPVTrainer.exe**. Keep all supplied files together.
+3. Click **Start keyboard-friendly practice**.
+4. The drone holds its starting height automatically. Hold **Up arrow** to climb; release it to hold height. Hold **Down arrow** to descend.
+5. Briefly press **W** to tilt and move forward. Release to level; momentum slows gradually. **S** tilts back. **A/D** roll left/right. **Q/E** turn left/right.
+6. Follow the highlighted target and the minimap. Cross gates in order, from their front. Tunnels and zigzag stations require passage through all their sections.
+7. **Enter** pauses/resumes, **R** starts a fresh attempt, **Esc** returns to the menu. Clicking a top navigation button also stops the current flight.
 
-    godot --path /workspace/fpv-trainer
+In Acro assessment, Up/Down change motor power and the power stays at the value set. Releasing movement keys does not self-level. Keyboard assistance is restricted to practice. If controls seem difficult, use assisted practice first.
 
-Enter starts/pauses; R restarts the whole run. W/S pitch, A/D roll, Q/E yaw, Up/Down gradually adjust throttle. No automatic leveling. Keyboard input is for development; it cannot establish real-radio compatibility.
+For slower laptops, open **Drone & Controls**, switch shadows off, and leave wind at zero. Performance has not been measured on the user's laptop.
 
-Edit data/course.json to add/remove gates or change dimensions (metres), positions and yaw. A graphical course editor is not implemented yet. The external course.json alongside an exported executable takes precedence over bundled data.
+## Obstacle geometry and passage checks
 
-## Portable Windows target
+The 13 supplied stations use nine distinct generated shapes: circular ring, hexagon, zigzag (offset rectangular sections), narrow precision gate, triple ring (any of its three openings), multi-frame corridor, covered tunnel, curved U-tunnel, and stacked KZ frame. Rings have polygonal curved boundaries; hexagons use their six-sided opening. Passage checks include the drone's 0.18 m collision radius and reject incorrect direction. Tunnel and corridor sections must be cleared in order. Frame collisions and tunnel covers have physical collision geometry.
 
-Copy the entire exported Windows folder to the destination PC or USB, then run FPVTrainer.exe. A shortcut alone does not contain the software. No Godot installation is needed on that PC. Session results and controller settings are saved in the Windows user's Godot app-data directory, not on the USB. A portable executable does not yet mean portable user records.
+These are interpretations of the supplied photographs, not measured replicas. In particular, the U-tunnel curvature, zigzag, KZ proportions and dimensions need user review. The supplied layout and 10/20 ft intervals are approximate. Actual dimensions/orientations can now be changed in the editor.
 
-Windows execution and real controller operation have not been tested in this Linux cloud workspace. Rendering speed, drone realism and training transfer have not been validated.
+## Assessment
 
-## Validation
+Defaults: 3 laps, 160-second qualifying time, 200-second cutoff, 100 starting points; first crash deducts 20, second disqualifies. One point is deducted per completed five seconds above qualifying time. The incomplete time-bonus rule defaults to disabled (0); configure seconds per bonus point in the course editor after the rule is known. Score is clamped to zero at the low end.
 
-    godot --headless --path /workspace/fpv-trainer --script res://tests/smoke.gd
+Timing begins on the first gate's first valid passage and ends on the final section of the final station of the final lap. This first-gate timing is an approximation to the physical start-line rule. The lap loop continues from KZ back to the first ring. Pausing suspends time, so this build is not tamper-resistant competition judging software.
 
-Checks actual scene construction, outside/reverse gate rejection, three-lap completion and reset. Test results use a separate XDG_DATA_HOME in cloud runs to avoid mixing with real trainee records.
+Contact versus crash uses pre-impact speed (3.5 m/s threshold), with a short cooldown to avoid repeated counts for one impact. This remains a heuristic requiring hardware/physics validation. Assessment uses calm conditions and Acro; current mass/rate/FOV settings remain configurable.
 
-## Next implementation work
+## Saved files and portability
 
-Accurate obstacle meshes and collision boundaries; start/finish detection distinct from pressing Enter; crash/contact classification; full controller calibration and hot-plug safety; local trainee profiles; instructor dashboard; visual course editor; configurable assessment rules; real-drone tuning; wind; Windows and hardware acceptance tests. Existing crash detection is a speed-threshold approximation, not reliable crash classification. Timer currently starts on Enter rather than crossing a start line.
+The complete exported folder can be copied by USB. A shortcut alone does not contain the simulator. User courses, settings and results save under:
+
+    %APPDATA%/Godot/app_userdata/DTC Flight Lab/
+
+Files: course.json, settings.cfg, sessions.jsonl. Use the editor's Export and Results' CSV Export to copy data to USB. The executable is portable, but user records are stored per PC.
+
+Course loading order: valid local saved course, valid course.json beside the executable, bundled course. Use **Restore supplied course** (with confirmation) to reset a saved layout. Invalid imports leave the current course intact. Settings/results from prototype 0.1 are not automatically migrated to the renamed application.
+
+## USB radio setup
+
+Connect a RadioMaster in USB Joystick mode. Open Drone & Controls, enable USB input, then map one axis at a time. Move that axis fully in both directions, return roll/pitch/yaw to centre, and confirm. Check live values and inversion. Throttle should read -1 at low power and +1 at high power; low throttle is required to start/resume. Changes in device connection pause flight. Calibration profiles use device GUID and name. If identical radios report identical IDs/names they share a profile.
+
+RadioMaster Pocket/TX16 physical testing is pending. Automated axis-scaling checks do not prove real USB compatibility.
+
+## Development and checks
+
+Open project.godot in Godot 4.6.3, or:
+
+    godot --path .
+    godot --headless --path . --script res://tests/smoke.gd
+    godot --headless --fixed-fps 60 --path . --script res://tests/flight.gd
+
+Tests create local test results/settings. Set XDG_DATA_HOME to a separate temporary directory on Linux to keep test data separate from real records, and use a fresh directory for each smoke run. Smoke checks expect an empty results history.
+
+Verified in the Linux cloud: 92 scene/geometry/editing/persistence/rules/axis checks and 6 physical keyboard-flight checks. Rendered screenshots were reviewed using software OpenGL. Windows x86-64 export succeeded. Windows runtime, GPU/laptop performance, physical USB radios and correspondence to a real drone have not been verified.
+
+Export with the matching official Windows templates installed:
+
+    godot --headless --path . --export-release "Windows Desktop"
+
+Cloud templates live under /workspace/fpv-tools/data/godot/export_templates/4.6.3.stable, selected by XDG_DATA_HOME=/workspace/fpv-tools/data. Downloaded official templates were verified against the release SHA512 list. No runtime downloads occur.
+
+## Limitations and next acceptance work
+
+This is a development release, not a finished commercial-grade replacement for Liftoff. Physics is a simplified thrust/drag/rate simulation; mass/rates and constant-force wind are experimental settings. There is no motor/PID/battery/aerodynamic calibration to the Luma 5. Wind realism, real-radio input and Windows behavior require practical testing. No goggles output, multiplayer, replay or full trainee-management system is included. Pilot names and session records are local; no online services are used. The Windows executable is unsigned: do not disable security protection to run it; report exact warnings for diagnosis.
+
+Godot engine license: https://godotengine.org/license/ (MIT). Bundled DejaVu font license: assets/FONT-LICENSE.txt. All course/world geometry, interface and motor waveform are generated by this project; no Liftoff assets or code are used.
