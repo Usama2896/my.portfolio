@@ -1,0 +1,127 @@
+{
+  "name": "Training course \u2014 approximate layout",
+  "approximate": true,
+  "laps": 3,
+  "qualifying_seconds": 160,
+  "cutoff_seconds": 200,
+  "bonus_seconds_per_point": null,
+  "gates": [
+    {
+      "name": "Circular Ring",
+      "x": 0,
+      "z": 0,
+      "height": 2.0,
+      "width": 2.4,
+      "opening_height": 2.4,
+      "yaw_degrees": 0
+    },
+    {
+      "name": "Hexagon",
+      "x": 0,
+      "z": -6.096,
+      "height": 2.0,
+      "width": 2.4,
+      "opening_height": 2.4,
+      "yaw_degrees": 0
+    },
+    {
+      "name": "Zig Zag",
+      "x": 0,
+      "z": -12.192,
+      "height": 2.0,
+      "width": 2.4,
+      "opening_height": 2.4,
+      "yaw_degrees": 0
+    },
+    {
+      "name": "Hexagon",
+      "x": -3.048,
+      "z": -12.192,
+      "height": 2.0,
+      "width": 2.4,
+      "opening_height": 2.4,
+      "yaw_degrees": 90
+    },
+    {
+      "name": "Precision Gate",
+      "x": -6.096,
+      "z": -12.192,
+      "height": 2.0,
+      "width": 2.4,
+      "opening_height": 2.4,
+      "yaw_degrees": 90
+    },
+    {
+      "name": "Circular Ring",
+      "x": -9.144,
+      "z": -12.192,
+      "height": 2.0,
+      "width": 2.4,
+      "opening_height": 2.4,
+      "yaw_degrees": 180
+    },
+    {
+      "name": "Hexagon",
+      "x": -9.144,
+      "z": -6.096,
+      "height": 2.0,
+      "width": 2.4,
+      "opening_height": 2.4,
+      "yaw_degrees": 180
+    },
+    {
+      "name": "Triple Ring",
+      "x": -9.144,
+      "z": 0,
+      "height": 2.0,
+      "width": 2.4,
+      "opening_height": 2.4,
+      "yaw_degrees": 180
+    },
+    {
+      "name": "Circular Ring",
+      "x": -12.192,
+      "z": 0,
+      "height": 2.0,
+      "width": 2.4,
+      "opening_height": 2.4,
+      "yaw_degrees": 90
+    },
+    {
+      "name": "Multi Frame Corridor",
+      "x": -15.24,
+      "z": 0,
+      "height": 2.0,
+      "width": 2.4,
+      "opening_height": 2.4,
+      "yaw_degrees": 90
+    },
+    {
+      "name": "Tunnel",
+      "x": -15.24,
+      "z": -6.096,
+      "height": 2.0,
+      "width": 2.4,
+      "opening_height": 2.4,
+      "yaw_degrees": 0
+    },
+    {
+      "name": "U-Tunnel",
+      "x": -15.24,
+      "z": -12.192,
+      "height": 2.0,
+      "width": 2.4,
+      "opening_height": 2.4,
+      "yaw_degrees": 0
+    },
+    {
+      "name": "KZ",
+      "x": -15.24,
+      "z": -18.288,
+      "height": 2.0,
+      "width": 2.4,
+      "opening_height": 2.4,
+      "yaw_degrees": 0
+    }
+  ]
+}
