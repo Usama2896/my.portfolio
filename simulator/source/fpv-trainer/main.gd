@@ -326,7 +326,7 @@ func build_interface() -> void:
 	notice.offset_right = -20
 	notice.offset_top = -35
 	overlay.add_child(notice)
-	version_label = label_("OFFLINE  /  V0.7   •   APPROXIMATE COURSE",12,"e0ead7")
+	version_label = label_("OFFLINE  /  V0.7.1   •   APPROXIMATE COURSE",12,"e0ead7")
 	version_label.position = Vector2(450,96)
 	overlay.add_child(version_label)
 	hud = PanelContainer.new()
@@ -1444,7 +1444,7 @@ func show_splash() -> void:
 	splash_progress.add_theme_stylebox_override("background",style("1c3e33",2,0))
 	splash_progress.add_theme_stylebox_override("fill",style("79e5c2",2,0))
 	column.add_child(splash_progress)
-	var footer := label_("OFFLINE FLIGHT SIMULATOR   /   VERSION 0.7",12,"79988c")
+	var footer := label_("OFFLINE FLIGHT SIMULATOR   /   VERSION 0.7.1",12,"79988c")
 	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(footer)
 
@@ -1604,7 +1604,7 @@ func launch_from_popup() -> void:
 	launch_remote()
 
 func remote_report() -> String:
-	var rows := PackedStringArray([APP_TITLE+" v0.7 REMOTE REPORT","Device: "+(controller.device_name(joystick) if joystick>=0 else "NOT CONNECTED"),"Setup issue: "+remote_configuration_issue(),"State: in_flight=%s active=%s waiting_low=%s" % [in_flight,active,remote_waiting_low],"Last action: "+last_launch_action])
+	var rows := PackedStringArray([APP_TITLE+" v0.7.1 REMOTE REPORT","Device: "+(controller.device_name(joystick) if joystick>=0 else "NOT CONNECTED"),"Setup issue: "+remote_configuration_issue(),"State: in_flight=%s active=%s waiting_low=%s" % [in_flight,active,remote_waiting_low],"Last action: "+last_launch_action])
 	for i in range(4):
 		rows.append("%s axis=%d raw=%+.3f scaled=%+.3f inverted=%s endpoints=%s centre=%.3f" % [["Roll","Pitch","Yaw","Throttle"][i],axes[i],controller.axis(joystick,axes[i]) if joystick>=0 else 0,radio_axis(i),inversions[i],str(endpoints[i]),centers[i]])
 	return "\n".join(rows)

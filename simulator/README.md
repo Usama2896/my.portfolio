@@ -1,8 +1,10 @@
-# AL JEHAD FPV OBSTACLE COURSE — v0.7
+# AL JEHAD FPV OBSTACLE COURSE — v0.7.1
 
 **[Download Windows ZIP — about 36 MB](https://github.com/Usama2896/my.portfolio/raw/refs/heads/fpv-simulator-prototype/simulator/FPVTrainer-Windows-Prototype.zip)**
 
-Close the old app, extract into a new folder, and open **AL-JEHAD-FPV/AlJehadFPV.exe**. Check **V0.7**. Saved calibration, courses and records remain available. No Internet or engine installation is needed to run the export.
+Close the old app, extract into a new folder, and open **AL-JEHAD-FPV/AlJehadFPV.exe**. Check **V0.7.1**. Saved calibration, courses and records remain available. No Internet or engine installation is needed to run the export.
+
+The fixed white centre diamond and dashed horizontal marks now follow your supplied FPV-screen reference. Black outlines keep them visible against grass and sky. The coloured opening target remains separate and moves with the next gate. These are visual aiming references, not an artificial horizon or automatic steering. Remote flight now shows stick/throttle instructions instead of keyboard instructions.
 
 ## Faster, independent yaw
 
@@ -18,7 +20,7 @@ Choose **Basic Guided Practice — easiest** in Flight mode, then Fly with Keybo
 - Release movement keys or centre pitch/roll sticks to brake and stop.
 - Altitude assistance, gentle steering and calm conditions.
 - God Mode is selected initially; Crash Mode remains available.
-- A centre **+**, marked opening reticle, off-screen direction arrows and green **GATE CLEAR** feedback.
+- A centre **diamond and dashed horizontal reference**, marked opening reticle, off-screen direction arrows and green **GATE CLEAR** feedback.
 - A moving cyan guide drone and dotted route through the current obstacle, including the upward tunnel.
 
 The cyan drone is a visual guide, not autopilot. It cannot collide with you or complete gates for you. The guide fades near the camera to avoid blocking the view. Wrong-side approaches point back to the entry, and openings too small for the selected drone show a warning.
@@ -32,7 +34,7 @@ The cyan drone is a visual guide, not autopilot. It cannot collide with you or c
 1. Choose **Basic Guided Practice** and leave **God Mode** selected.
 2. **Keyboard:** Fly with Keyboard starts a hover. W/S moves forward/back; A/D moves sideways; Q/E or Left/Right arrows turn. Up/Down climbs/descends. Release movement keys to stop.
 3. **Remote:** Fly with Remote opens disarmed; lower throttle to arm. Raise it above halfway to climb, then near halfway to hold height. Right stick moves forward/back/sideways; left stick horizontal turns (usual Mode 2 mapping). Fully low throttle still cuts motors.
-4. Follow the cyan route. Align the centre + with the outlined opening marker. Turn or climb/descend when the guide arrow says so.
+4. Follow the cyan route. Align the centre diamond with the outlined opening marker. Turn or climb/descend when the guide arrow says so.
 5. Enter pauses, R restarts, Esc opens the menu, F11 toggles full screen.
 
 **[Full beginner/remote guide](REMOTE-SETUP.txt)** is included in the ZIP. Ordinary remote Practice stays Acro and does not use Basic movement assistance; assessment has no guide or Basic assists.

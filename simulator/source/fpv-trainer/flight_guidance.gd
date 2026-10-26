@@ -18,12 +18,18 @@ func _draw() -> void:
 	if not is_instance_valid(host) or not is_instance_valid(host.guidance) or not host.guidance.visible: return
 	var middle := size/2
 	var color := Color("a5ffe1")
-	for axis in [Vector2.RIGHT,Vector2.DOWN]:
-		for side in [-1,1]:
-			var a: Vector2 = middle+axis*side*5
-			var b: Vector2 = middle+axis*side*17
-			draw_line(a,b,Color(0,0,0,0.9),4,true)
-			draw_line(a,b,color,2,true)
+	# Fixed camera-centre FPV reference, styled after the supplied OSD photo.
+	# This stays level on screen; the separate target follows the opening.
+	var diamond := PackedVector2Array([middle+Vector2(0,-7),middle+Vector2(7,0),middle+Vector2(0,7),middle+Vector2(-7,0),middle+Vector2(0,-7)])
+	draw_polyline(diamond,Color.BLACK,5,true)
+	draw_polyline(diamond,Color.WHITE,2,true)
+	for side in [-1,1]:
+		for step in range(4):
+			var offset := float(17+step*15)
+			var a := middle+Vector2(side*offset,0)
+			var b := a+Vector2(side*7,0)
+			draw_line(a,b,Color.BLACK,5,true)
+			draw_line(a,b,Color.WHITE,2,true)
 	var point: Vector3 = host.guidance.aim_point()
 	var behind: bool = host.camera.is_position_behind(point)
 	var projected: Vector2 = host.camera.unproject_position(point) if not behind else Vector2(-1000,-1000)
@@ -36,7 +42,7 @@ func _draw() -> void:
 		draw_arc(projected,18,0,TAU,32,color,2,true)
 		draw_line(projected-Vector2(9,0),projected+Vector2(9,0),color,2,true)
 		draw_line(projected-Vector2(0,9),projected+Vector2(0,9),color,2,true)
-		direction = "CENTRED — steer gently through the marker" if aligned else "Line up the centre + with the marked opening"
+		direction = "CENTRED — steer gently through the marker" if aligned else "Line up the centre diamond with the marked opening"
 	else:
 		var local: Vector3 = host.camera.to_local(point)
 		var delta_ := Vector2(local.x,-local.y)
@@ -50,4 +56,4 @@ func _draw() -> void:
 	if not host.guidance.fits_opening: direction = "Opening too small for this drone — choose a smaller span or wider gate"
 	elif host.guidance.approach_first: direction = "Approach from the marked entry side"
 	var controls := "Move stick: forward/sideways · yaw stick: turn · centre to stop\nThrottle: above middle climbs · middle holds · fully low switches motors off" if host.use_radio else "W/S forward/back · A/D sideways · Q/E or ←/→ turn · release to stop"
-	instruction.text = feedback+"BASIC GUIDED PRACTICE\n"+direction+"\nCyan drone and dotted line = visual route only. You fly the real drone.\nW/S forward/back · A/D sideways · Q/E or ←/→ turn · release to stop"
+	instruction.text = feedback+"BASIC GUIDED PRACTICE\n"+direction+"\nCyan drone and dotted line = visual route only. You fly the real drone.\n"+controls
