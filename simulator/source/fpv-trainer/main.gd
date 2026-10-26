@@ -1,4 +1,5 @@
 extends Node3D
+const BODY = preload("res://drone_body.gd")
 const APP_TITLE = "AL JEHAD FPV OBSTACLE COURSE"
 const INPUT_ADAPTER = preload("res://controller_input.gd")
 const SIZES = preload("res://drone_sizes.gd")
@@ -38,6 +39,20 @@ var active := false
 var finished := false
 var started := false
 var throttle := 0.0
+var practice_god_mode := false
+var remote_waiting_low := false
+var low_throttle_time := 0.0
+var crash_phase := ""
+var crash_timer := 0.0
+var crash_terminal := ""
+var impact_flash := 0.0
+var shake_strength := 0.0
+var feedback_clock := 0.0
+var impact_overlay: ColorRect
+var centre_panel: PanelContainer
+var centre_label: Label
+var impact_audio: AudioStreamPlayer
+var last_launch_action := "Idle"
 var previous_position := Vector3.ZERO
 var impact_speed := 0.0
 var contact_cooldown := 0.0
@@ -105,6 +120,7 @@ func _ready() -> void:
 	overview.fov = 58
 	overview.current = true
 	build_interface()
+	build_impact_interface()
 	reset_run()
 	show_module("Fly")
 	if DisplayServer.get_name()!="headless": show_splash()
@@ -165,13 +181,17 @@ func rebuild_course() -> void:
 	if is_instance_valid(minimap): minimap.queue_redraw()
 
 func create_drone() -> void:
-	drone = RigidBody3D.new()
+	drone = BODY.new()
 	drone.mass = mass
 	drone.linear_damp = 0.35
 	drone.angular_damp = 3
 	drone.contact_monitor = true
 	drone.max_contacts_reported = 12
 	drone.continuous_cd = true
+	var surface := PhysicsMaterial.new()
+	surface.bounce = 0.28
+	surface.friction = 0.65
+	drone.physics_material_override = surface
 	var shape := CollisionShape3D.new()
 	var sphere := SphereShape3D.new()
 	sphere.radius = SIZES.radius(drone_span)
@@ -179,7 +199,7 @@ func create_drone() -> void:
 	drone_collision = shape
 	drone.add_child(shape)
 	add_child(drone)
-	drone.body_entered.connect(on_contact)
+	drone.connect("impact",on_impact)
 	camera = Camera3D.new()
 	camera.fov = fov
 	drone.add_child(camera)
@@ -287,7 +307,7 @@ func build_interface() -> void:
 	notice.offset_right = -20
 	notice.offset_top = -35
 	overlay.add_child(notice)
-	version_label = label_("OFFLINE  /  V0.4   •   APPROXIMATE COURSE",12,"e0ead7")
+	version_label = label_("OFFLINE  /  V0.5   •   APPROXIMATE COURSE",12,"e0ead7")
 	version_label.position = Vector2(450,96)
 	overlay.add_child(version_label)
 	hud = PanelContainer.new()
@@ -349,8 +369,16 @@ func fly_menu() -> void:
 	mode.add_item("Practice — learn and retry")
 	mode.add_item("Acro Assessment — timed and scored")
 	mode.select(1 if launch_assessment else 0)
-	mode.item_selected.connect(func(i): launch_assessment = i==1)
+	mode.item_selected.connect(func(i): launch_assessment = i==1; show_module.call_deferred("Fly"))
 	content.add_child(mode)
+	var collisions := OptionButton.new()
+	collisions.add_item("Crash Mode — impacts and checkpoint restart")
+	collisions.add_item("God Mode — bumps, no crashes or restart")
+	collisions.select(1 if practice_god_mode else 0)
+	collisions.disabled = launch_assessment
+	collisions.item_selected.connect(func(i): practice_god_mode = i==1; save_settings())
+	content.add_child(collisions)
+	paragraph("Assessment always uses crash rules. Practice lets you choose Crash Mode or God Mode.")
 	button_("Fly with Keyboard",launch_keyboard,null,true)
 	button_("Fly with Remote",launch_remote)
 	launch_message = label_("",14,"ffc98e")
@@ -358,7 +386,7 @@ func fly_menu() -> void:
 	content.add_child(launch_message)
 	paragraph("The two buttons select the input automatically. No hidden USB switch is needed.")
 	paragraph("KEYBOARD PRACTICE\nAuto-level and height assistance. W/S tilt; A/D bank; Q/E or ←/→ turn. ↑/↓ climb and descend.")
-	paragraph("REMOTE PRACTICE\nYour mapped USB radio, in Acro mode. Lower throttle fully before starting. If blocked, a setup window explains why.")
+	paragraph("REMOTE PRACTICE\nYour mapped USB radio, in Acro mode. The flight view opens first; motors wait until throttle is low. Setup issues are explained on screen.")
 	paragraph("Assessment uses Acro for both input types. Practice has no competition score. Enter pauses; R restarts; Esc opens this menu.")
 	paragraph("Selected drone: %s · approximate overall span %.2f m. Change it in Drone & Controls." % [SIZES.LABELS[drone_category],drone_span],"79e5c2")
 	paragraph("Course geometry and flight dynamics remain approximate.","c0b38f")
@@ -590,6 +618,8 @@ func controls_menu() -> void:
 	button_("Cancel unfinished calibration",cancel_calibration)
 	paragraph("Correct live values: roll RIGHT +1; pitch FORWARD −1; yaw RIGHT +1; throttle LOW −1 and HIGH +1. Toggle Invert if a channel is reversed.")
 	button_("Open beginner USB remote guide",show_remote_help)
+	button_("Copy remote diagnostic report",copy_remote_report)
+	button_("Open offline browser Radio Test",open_browser_radio_test)
 	paragraph("Mappings are saved for the currently connected device. Physical RadioMaster testing is still pending. Assessment always uses Acro and calm conditions.","c0b38f")
 
 func begin_calibration(index: int) -> void:
@@ -638,6 +668,7 @@ func load_settings() -> void:
 	trainee = str(cfg.get_value("flight","trainee","Guest")).left(60)
 	motor_sound = bool(cfg.get_value("flight","motor_sound",true))
 	shadows = bool(cfg.get_value("flight","shadows",true))
+	practice_god_mode = bool(cfg.get_value("flight","practice_god_mode",false))
 	drone_category = clampi(int(cfg.get_value("flight","drone_category",1)),0,SIZES.LABELS.size()-1)
 	drone_span = clampf(float(cfg.get_value("flight","drone_span",SIZES.SPANS[drone_category])),0.10,1.40)
 	preferred_radio_guid = str(cfg.get_value("flight","preferred_radio_guid",""))
@@ -655,7 +686,7 @@ func load_radio() -> void:
 func save_settings() -> void:
 	var cfg := ConfigFile.new()
 	cfg.load(PROFILE_PATH)
-	for key in ["fov","rates","mass","wind","assisted","use_radio","deadzone","trainee","motor_sound","shadows","drone_category","drone_span","preferred_radio_guid","preferred_radio_name"]: cfg.set_value("flight",key,get(key))
+	for key in ["fov","rates","mass","wind","assisted","use_radio","deadzone","trainee","motor_sound","shadows","drone_category","drone_span","preferred_radio_guid","preferred_radio_name","practice_god_mode"]: cfg.set_value("flight",key,get(key))
 	if joystick>=0:
 		var stored_axes: Array = calibration_snapshot.axes if calibrating>=0 and not calibration_snapshot.is_empty() else axes
 		var stored_ranges: Array = calibration_snapshot.endpoints if calibrating>=0 and not calibration_snapshot.is_empty() else endpoints
@@ -720,7 +751,7 @@ func export_results() -> void:
 	dialog.file_selected.connect(func(path):
 		var file := FileAccess.open(path,FileAccess.WRITE)
 		if file:
-			var keys := PackedStringArray(["timestamp","pilot","mode","result","seconds","crashes","contacts","score","course","input","drone_size","span_metres"])
+			var keys := PackedStringArray(["timestamp","pilot","mode","result","seconds","crashes","contacts","score","course","input","drone_size","span_metres","collision_mode"])
 			file.store_csv_line(keys)
 			for d in read_results():
 				var values := PackedStringArray()
@@ -738,9 +769,10 @@ func export_results() -> void:
 func reset_run() -> void:
 	drone.freeze = true
 	var first := gates[0]
-	drone.transform = Transform3D(Basis(Vector3.UP,deg_to_rad(float(course.gates[0].yaw_degrees))),first.to_global(Vector3(0,0,4)))
+	drone.call("request_reset",Transform3D(Basis(Vector3.UP,deg_to_rad(float(course.gates[0].yaw_degrees))),first.to_global(Vector3(0,0,4))))
 	drone.linear_velocity = Vector3.ZERO
 	drone.angular_velocity = Vector3.ZERO
+	drone.set("previous_velocity",Vector3.ZERO)
 	previous_position = drone.position
 	next_gate = 0
 	section_index = 0
@@ -749,6 +781,15 @@ func reset_run() -> void:
 	crashes = 0
 	contacts = 0
 	throttle = 0
+	remote_waiting_low = false
+	low_throttle_time = 0
+	crash_phase = ""
+	crash_timer = 0
+	crash_terminal = ""
+	impact_flash = 0
+	shake_strength = 0
+	drone.linear_damp = 0.35
+	drone.angular_damp = 3
 	active = false
 	finished = false
 	started = false
@@ -757,27 +798,37 @@ func reset_run() -> void:
 func start_flight(scored: bool) -> bool:
 	if splash_remaining>0: return false
 	if use_radio:
-		var reason := remote_blocker()
+		var reason := remote_configuration_issue()
 		if not reason.is_empty():
 			active = false
 			drone.freeze = true
 			status = reason
+			last_launch_action = "Setup blocked: "+reason
 			show_launch_problem()
 			return false
 	assessment = scored
 	reset_run()
 	in_flight = true
-	active = true
-	drone.freeze = false
+	active = not use_radio
+	remote_waiting_low = use_radio
+	drone.freeze = use_radio
+	if use_radio:
+		var grounded := drone.transform
+		grounded.origin.y = SIZES.radius(drone_span)+0.06
+		drone.call("request_reset",grounded)
+	previous_position = drone.position
 	camera.current = true
 	menu.visible = false
 	hud.visible = true
 	minimap.visible = true
 	if is_instance_valid(launch_dialog): launch_dialog.hide()
-	status = "Cross the first gate to start timing. "+("ACRO ASSESSMENT" if scored else "REMOTE ACRO PRACTICE" if use_radio else "KEYBOARD PRACTICE")
+	status = "Lower throttle fully to arm. The remote flight view is open." if use_radio else "Cross the first gate to start timing. KEYBOARD PRACTICE" if not scored else "ACRO ASSESSMENT"
+	last_launch_action = "Flight view opened — waiting for low throttle" if use_radio else "Keyboard flight started"
 	return true
 
 func leave_flight() -> void:
+	remote_waiting_low = false
+	crash_phase = ""
 	active = false
 	drone.freeze = true
 	in_flight = false
@@ -796,6 +847,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if not in_flight: return
 	if event.keycode == KEY_R: start_flight(assessment)
 	if event.keycode == KEY_ENTER and not finished:
+		if remote_waiting_low:
+			status = "Lower throttle to arm; arming happens automatically after a stable low reading."
+			return
 		if not active and use_radio and (joystick<0 or (radio_axis(3)+1)/2>0.1):
 			status = "Reconnect controller and lower throttle before resuming."
 			return
@@ -808,6 +862,10 @@ func key_axis(positive: Key, negative: Key) -> float:
 
 func _physics_process(delta: float) -> void:
 	poll_radio()
+	update_feedback(delta)
+	update_remote_arming(delta)
+	if started and in_flight and not finished and (active or remote_waiting_low): elapsed += delta
+	update_crash_state(delta)
 	if calibrating>=0 and joystick>=0:
 		if calibration_step==0:
 			for i in range(10):
@@ -825,10 +883,9 @@ func _physics_process(delta: float) -> void:
 	for i in range(axis_labels.size()):
 		axis_labels[i].text = "Axis %d   %+.2f    %s" % [axes[i],radio_axis(i),controller.device_name(joystick) if joystick>=0 else "No USB controller"]
 	if is_instance_valid(motor):
-		motor.volume_db = lerpf(motor.volume_db,-23.0+throttle*8 if active and motor_sound else -80.0,0.12)
+		motor.volume_db = lerpf(motor.volume_db,-23.0+throttle*8 if active and crash_phase.is_empty() and motor_sound else -80.0,0.12)
 		motor.pitch_scale = 0.7+throttle*1.8+drone.linear_velocity.length()*0.008
-	if active:
-		if started: elapsed += delta
+	if active and crash_phase.is_empty():
 		contact_cooldown = maxf(0,contact_cooldown-delta)
 		var roll := key_axis(KEY_D,KEY_A)
 		var pitch := key_axis(KEY_S,KEY_W)
@@ -854,9 +911,11 @@ func _physics_process(delta: float) -> void:
 		impact_speed = drone.linear_velocity.length()
 		check_gate(previous_position,drone.position)
 		previous_position = drone.position
-		if assessment and elapsed>float(course.cutoff_seconds): finish_run("Disqualified: time limit")
+
 		if drone.position.y < -3 or drone.position.y>80 or absf(drone.position.x)>100 or absf(drone.position.z)>100:
 			finish_run("Outside training area")
+	if in_flight and not finished and assessment and elapsed>float(course.cutoff_seconds): finish_run("Disqualified: time limit")
+	update_flight_centre()
 	if is_instance_valid(notice): notice.text = status
 	if is_instance_valid(launch_message) and not in_flight: launch_message.text = status
 	if is_instance_valid(remote_readout) and is_instance_valid(launch_dialog) and launch_dialog.visible: update_launch_readout()
@@ -864,7 +923,7 @@ func _physics_process(delta: float) -> void:
 		var data: Dictionary = course.gates[next_gate]
 		target_label.text = "%02d / %02d   %s    ·    LAP %d / %d" % [next_gate+1,course.gates.size(),data.name.to_upper(),lap,course.laps]
 		telemetry.text = "%s  %05.1fs     |     %02d km/h     |     ALT %.1fm     |     HDG %03d°     |     POWER %d%%     |     CRASH %d" % ["TIME" if started else "READY",elapsed,int(drone.linear_velocity.length()*3.6),drone.position.y,int(fposmod(-rad_to_deg(drone.rotation.y),360)),int(throttle*100),crashes]
-		flight_status.text = ("ACRO ASSESSMENT" if assessment else "ASSISTED PRACTICE" if assisted and not use_radio else "ACRO PRACTICE")+"    ·    Q/E or ←/→: turn    /    A/D: bank    /    Enter: pause    /    Esc: menu"+("    PAUSED" if not active else "")
+		flight_status.text = ("GOD MODE · " if not assessment and practice_god_mode else "CRASH MODE · ")+("ACRO ASSESSMENT" if assessment else "ASSISTED PRACTICE" if assisted and not use_radio else "ACRO PRACTICE")+"    ·    Q/E or ←/→: turn    /    A/D: bank    /    Enter: pause    /    Esc: menu"+("    PAUSED" if not active else "")
 		minimap.queue_redraw()
 		guide.visible = not finished
 		var center: Vector3 = O.sections(data)[section_index].center
@@ -874,7 +933,7 @@ func _physics_process(delta: float) -> void:
 	else: guide.visible = false
 
 func check_gate(from: Vector3, to: Vector3) -> void:
-	if finished: return
+	if finished or not crash_phase.is_empty() or remote_waiting_low: return
 	var gate := gates[next_gate]
 	var data: Dictionary = course.gates[next_gate]
 	var sections := O.sections(data)
@@ -897,26 +956,48 @@ func check_gate(from: Vector3, to: Vector3) -> void:
 			break
 
 func on_contact(_body: Node) -> void:
-	if not active or contact_cooldown>0: return
-	contact_cooldown = 0.7
+	# Compatibility hook for assessment rule tests; real physics uses body impact normals.
+	on_impact(impact_speed,Vector3.BACK)
+
+func on_impact(strength: float, normal: Vector3) -> void:
+	if not active or finished or not crash_phase.is_empty() or contact_cooldown>0: return
+	contact_cooldown = 0.35
 	contacts += 1
-	if impact_speed < 3.5:
-		status = "Contact recorded — no crash penalty."
+	impact_flash = 0.16
+	shake_strength = clampf(strength*0.012,0.02,0.10)
+	play_impact_sound(strength)
+	if not assessment and practice_god_mode:
+		status = "GOD MODE — contact, no crash or reset."
+		return
+	if strength<3.5:
+		status = "Light contact — physical bounce, no crash penalty."
 		return
 	crashes += 1
-	if assessment and crashes>=2: finish_run("Disqualified: second crash")
-	elif assessment: status = "First crash: −20 points. Second crash ends the assessment."
-	else: status = "Practice collision. R restarts; no assessment penalty."
+	crash_phase = "tumble"
+	crash_timer = 1.1
+	crash_terminal = "Disqualified: second crash" if assessment and crashes>=2 else ""
+	impact_flash = 0.42
+	shake_strength = 0.08
+	throttle = 0
+	drone.linear_damp = 0.08
+	drone.angular_damp = 0.25
+	drone.apply_central_impulse(normal.normalized()*mass*clampf(strength*0.35,1,4))
+	var inertia := 0.4*mass*pow(SIZES.radius(drone_span),2)
+	drone.apply_torque_impulse(Vector3(2.5,0.8,-3.5)*inertia*clampf(strength/5,0.5,1.5))
+	status = "CRASH — motors cut. Restarting at station %02d after impact." % [next_gate+1]
+	if assessment and crashes==1: status += " First-crash penalty: −20."
 
 func finish_run(reason: String) -> void:
 	if finished: return
 	active = false
+	remote_waiting_low = false
+	crash_phase = ""
 	finished = true
 	drone.freeze = true
 	var score := 100-20*crashes-int(maxf(0,elapsed-float(course.qualifying_seconds))/5)
 	var bonus: float = course.get("bonus_seconds_per_point",0) if course.get("bonus_seconds_per_point") != null else 0
 	if bonus>0: score += int(maxf(0,float(course.qualifying_seconds)-elapsed)/bonus)
-	var result := {"timestamp":Time.get_datetime_string_from_system(),"pilot":trainee if not trainee.is_empty() else "Guest","mode":"Assessment" if assessment else "Practice","result":reason,"seconds":snappedf(elapsed,0.01),"crashes":crashes,"contacts":contacts,"score":maxi(0,score) if assessment and reason=="Course completed" else 0 if assessment else "Practice","course":course.name,"drone_size":SIZES.LABELS[drone_category],"span_metres":drone_span,"input":"Remote" if use_radio else "Keyboard"}
+	var result := {"timestamp":Time.get_datetime_string_from_system(),"pilot":trainee if not trainee.is_empty() else "Guest","mode":"Assessment" if assessment else "Practice","result":reason,"seconds":snappedf(elapsed,0.01),"crashes":crashes,"contacts":contacts,"score":maxi(0,score) if assessment and reason=="Course completed" else 0 if assessment else "Practice","course":course.name,"drone_size":SIZES.LABELS[drone_category],"span_metres":drone_span,"input":"Remote" if use_radio else "Keyboard","collision_mode":"Assessment" if assessment else "God Mode" if practice_god_mode else "Crash Mode"}
 	var f := FileAccess.open(RESULTS_PATH,FileAccess.READ_WRITE if FileAccess.file_exists(RESULTS_PATH) else FileAccess.WRITE)
 	if f:
 		f.seek_end()
@@ -994,6 +1075,9 @@ func create_motor_audio() -> void:
 	motor.play()
 
 func _exit_tree() -> void:
+	if is_instance_valid(impact_audio):
+		impact_audio.stop()
+		impact_audio.stream = null
 	if is_instance_valid(motor):
 		motor.stop()
 		motor.stream = null
@@ -1080,12 +1164,17 @@ func launch_remote() -> bool:
 	save_settings()
 	return start_flight(launch_assessment)
 
-func remote_blocker() -> String:
+func remote_configuration_issue() -> String:
 	if joystick<0: return "No selected USB remote is connected. Connect it in USB Joystick/HID mode, then choose the device in Drone & Controls."
 	if calibrating>=0: return "Axis calibration is unfinished. Confirm its travel and centre, or Cancel unfinished calibration in Drone & Controls."
 	for i in range(4):
 		for j in range(i):
 			if axes[i]==axes[j]: return "%s and %s both use axis %d. Map each movement to a different radio axis." % [["Roll","Pitch","Yaw","Throttle"][j],["Roll","Pitch","Yaw","Throttle"][i],axes[i]]
+	return ""
+
+func remote_blocker() -> String:
+	var setup := remote_configuration_issue()
+	if not setup.is_empty(): return setup
 	var power := (radio_axis(3)+1)/2
 	if power>0.10: return "Throttle is at %d%%. Move the throttle stick fully DOWN. Low should read −1.00. If DOWN reads +1.00, invert throttle; if it does not change, remap throttle." % roundi(power*100)
 	return ""
@@ -1103,8 +1192,10 @@ func show_launch_problem() -> void:
 		launch_dialog.add_child(remote_readout)
 		launch_dialog.add_button("Open Controls",false,"controls")
 		launch_dialog.add_button("Invert Throttle",false,"invert")
-		launch_dialog.confirmed.connect(launch_remote)
+		launch_dialog.add_button("Copy Report",false,"report")
+		launch_dialog.get_ok_button().pressed.connect(func(): launch_from_popup.call_deferred())
 		launch_dialog.custom_action.connect(func(action):
+			if action=="report": copy_remote_report()
 			if action=="controls":
 				launch_dialog.hide()
 				leave_flight()
@@ -1119,11 +1210,12 @@ func show_launch_problem() -> void:
 
 func update_launch_readout() -> void:
 	var device := controller.device_name(joystick) if joystick>=0 else "NOT CONNECTED"
-	var reason := remote_blocker()
+	var reason := remote_configuration_issue()
+	launch_dialog.get_ok_button().disabled = not reason.is_empty()
 	if joystick<0:
 		remote_readout.text = "SELECTED REMOTE: NOT CONNECTED\n\n"+reason+"\n\nUse a data cable and USB Joystick/HID mode. Open Controls to select the device.\n\nKeyboard flight is available separately on the Fly screen."
 		return
-	remote_readout.text = "SELECTED REMOTE: %s\n\n%s\n\nThrottle: %+.2f  /  %d%% motor command\nRoll: %+.2f   Pitch: %+.2f   Yaw: %+.2f\n\nThe throttle must be near −1.00 before starting. When ready, click Start Remote Flight.\n\nKeyboard flight is separate: close this window and use Fly with Keyboard." % [device,reason if not reason.is_empty() else "READY — throttle is low. You can start.",radio_axis(3),roundi((radio_axis(3)+1)*50),radio_axis(0),radio_axis(1),radio_axis(2)]
+	remote_readout.text = "SELECTED REMOTE: %s\n\n%s\n\nThrottle: %+.2f  /  %d%% motor command\nRoll: %+.2f   Pitch: %+.2f   Yaw: %+.2f\n\nClick Start Remote Flight to open the flight view. Motors stay off until throttle is near −1.00.\n\nKeyboard flight is separate: close this window and use Fly with Keyboard." % [device,reason if not reason.is_empty() else "READY — open the flight view; motors wait for low throttle.",radio_axis(3),roundi((radio_axis(3)+1)*50),radio_axis(0),radio_axis(1),radio_axis(2)]
 
 func poll_radio() -> void:
 	var devices: Array[int] = controller.devices()
@@ -1137,6 +1229,7 @@ func poll_radio() -> void:
 	if joystick==previous_joystick: return
 	if in_flight and use_radio:
 		active = false
+		remote_waiting_low = false
 		drone.freeze = true
 		status = "Remote connection changed. Check the selected device and throttle before restarting."
 	calibrating = -1
@@ -1279,7 +1372,7 @@ func show_splash() -> void:
 	splash_progress.add_theme_stylebox_override("background",style("1c3e33",2,0))
 	splash_progress.add_theme_stylebox_override("fill",style("79e5c2",2,0))
 	column.add_child(splash_progress)
-	var footer := label_("OFFLINE FLIGHT SIMULATOR   /   VERSION 0.4",12,"79988c")
+	var footer := label_("OFFLINE FLIGHT SIMULATOR   /   VERSION 0.5",12,"79988c")
 	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(footer)
 
@@ -1306,3 +1399,149 @@ func add_editor_map() -> void:
 	editor_map.editable = true
 	editor_map.custom_minimum_size = Vector2(350,280)
 	content.add_child(editor_map)
+
+func build_impact_interface() -> void:
+	impact_overlay = ColorRect.new()
+	impact_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	impact_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	impact_overlay.color = Color(0.9,0.18,0.08,0)
+	overlay.add_child(impact_overlay)
+	centre_panel = PanelContainer.new()
+	centre_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	centre_panel.offset_left = -310
+	centre_panel.offset_right = 310
+	centre_panel.offset_top = -115
+	centre_panel.offset_bottom = 115
+	centre_panel.add_theme_stylebox_override("panel",style("102722ed",12,20))
+	overlay.add_child(centre_panel)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation",12)
+	centre_panel.add_child(column)
+	centre_label = label_("",18,"f5e7ce")
+	centre_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	centre_label.custom_minimum_size.x = 560
+	column.add_child(centre_label)
+	var row := HBoxContainer.new()
+	row.name = "RemoteActions"
+	row.add_theme_constant_override("separation",10)
+	column.add_child(row)
+	button_("Invert Throttle",func(): inversions[3] = not inversions[3]; low_throttle_time = 0; save_settings(),row)
+	button_("Open Controls",func(): leave_flight(); show_module("Drone & Controls"),row)
+	button_("Copy Remote Report",copy_remote_report,row)
+	centre_panel.visible = false
+
+func update_flight_centre() -> void:
+	if not is_instance_valid(centre_panel): return
+	centre_panel.visible = in_flight and (remote_waiting_low or not crash_phase.is_empty() or finished)
+	if not centre_panel.visible: return
+	centre_panel.get_child(0).get_node("RemoteActions").visible = remote_waiting_low
+	if remote_waiting_low:
+		centre_label.text = "REMOTE FLIGHT IS OPEN\nLower throttle fully to arm the motors.\n\nThrottle %+.2f  /  %d%%     Low should be −1.00 / 0%%.\nIf fully down reads +1.00, use Invert Throttle.\nIf this number does not move, use Open Controls to map throttle." % [radio_axis(3),roundi((radio_axis(3)+1)*50)]
+	elif finished: centre_label.text = status+"\n\nR: new attempt   •   Esc: menu"
+	else: centre_label.text = "CRASH — MOTORS CUT\nImpact and recovery… %.1fs\n\n%s" % [maxf(0,crash_timer),"Assessment ends after this impact." if not crash_terminal.is_empty() else "Restarting at station %02d: %s. Earlier gates stay complete." % [next_gate+1,course.gates[next_gate].name]]
+
+func update_remote_arming(delta: float) -> void:
+	if not in_flight or finished or not remote_waiting_low or not crash_phase.is_empty(): return
+	if joystick<0 or not remote_configuration_issue().is_empty():
+		low_throttle_time = 0
+		return
+	if (radio_axis(3)+1)/2>0.10:
+		low_throttle_time = 0
+		throttle = 0
+		return
+	low_throttle_time += delta
+	if low_throttle_time<0.20: return
+	remote_waiting_low = false
+	active = true
+	drone.freeze = false
+	throttle = 0
+	previous_position = drone.position
+	last_launch_action = "Remote motors armed after stable low throttle"
+	status = "REMOTE ARMED — raise throttle gently. "+("GOD MODE" if not assessment and practice_god_mode else "CRASH MODE")
+
+func update_crash_state(delta: float) -> void:
+	if crash_phase.is_empty() or not active: return
+	crash_timer -= delta
+	if crash_timer>0: return
+	if not crash_terminal.is_empty(): finish_run(crash_terminal)
+	else: respawn_checkpoint()
+
+func respawn_checkpoint() -> void:
+	var data: Dictionary = course.gates[next_gate]
+	var gate := gates[next_gate]
+	var entry: Vector3 = O.sections(data)[0].center
+	var position_: Vector3 = gate.to_global(entry+Vector3(0,0,3+SIZES.radius(drone_span)))
+	if use_radio or assessment or not assisted: position_.y = SIZES.radius(drone_span)+0.06
+	else: position_.y = maxf(position_.y,SIZES.radius(drone_span)+0.3)
+	drone.freeze = true
+	drone.call("request_reset",Transform3D(Basis(Vector3.UP,deg_to_rad(float(data.yaw_degrees))),position_))
+	drone.linear_velocity = Vector3.ZERO
+	drone.angular_velocity = Vector3.ZERO
+	drone.set("previous_velocity",Vector3.ZERO)
+	drone.linear_damp = 0.35
+	drone.angular_damp = 3
+	previous_position = position_
+	section_index = 0
+	throttle = 0
+	crash_phase = ""
+	crash_terminal = ""
+	contact_cooldown = 1
+	remote_waiting_low = use_radio
+	low_throttle_time = 0
+	active = not use_radio
+	drone.freeze = use_radio
+	status = "Checkpoint: station %02d. " % [next_gate+1]+("Lower throttle to re-arm, then raise it to fly." if use_radio else "Continue from this obstacle. Earlier gates are preserved.")
+
+func update_feedback(delta: float) -> void:
+	feedback_clock += delta
+	impact_flash = maxf(0,impact_flash-delta*0.65)
+	shake_strength = maxf(0,shake_strength-delta*0.30)
+	if is_instance_valid(impact_overlay): impact_overlay.color = Color(0.95,0.22,0.10,impact_flash)
+	if is_instance_valid(camera):
+		camera.position = Vector3(sin(feedback_clock*71),sin(feedback_clock*83),0)*shake_strength
+		camera.rotation_degrees.z = sin(feedback_clock*59)*shake_strength*15
+
+func play_impact_sound(strength: float) -> void:
+	if not motor_sound or DisplayServer.get_name()=="headless": return
+	if not is_instance_valid(impact_audio):
+		impact_audio = AudioStreamPlayer.new()
+		add_child(impact_audio)
+	var bytes := PackedByteArray()
+	bytes.resize(6615*2)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 601
+	for i in range(6615):
+		var t := float(i)/22050
+		var value := (sin(TAU*85*t)*0.4+rng.randf_range(-0.35,0.35))*exp(-t*18)
+		bytes.encode_s16(i*2,int(value*32767))
+	var wav := AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_16_BITS
+	wav.mix_rate = 22050
+	wav.data = bytes
+	impact_audio.stream = wav
+	impact_audio.volume_db = -18+minf(strength,8)
+	impact_audio.play()
+
+func launch_from_popup() -> void:
+	last_launch_action = "Start Remote Flight popup button pressed"
+	if is_instance_valid(launch_dialog): launch_dialog.hide()
+	launch_remote()
+
+func remote_report() -> String:
+	var rows := PackedStringArray([APP_TITLE+" v0.5 REMOTE REPORT","Device: "+(controller.device_name(joystick) if joystick>=0 else "NOT CONNECTED"),"Setup issue: "+remote_configuration_issue(),"State: in_flight=%s active=%s waiting_low=%s" % [in_flight,active,remote_waiting_low],"Last action: "+last_launch_action])
+	for i in range(4):
+		rows.append("%s axis=%d raw=%+.3f scaled=%+.3f inverted=%s endpoints=%s centre=%.3f" % [["Roll","Pitch","Yaw","Throttle"][i],axes[i],controller.axis(joystick,axes[i]) if joystick>=0 else 0,radio_axis(i),inversions[i],str(endpoints[i]),centers[i]])
+	return "\n".join(rows)
+
+func copy_remote_report() -> void:
+	DisplayServer.clipboard_set(remote_report())
+	status = "Remote report copied. Paste it into chat if launch still fails."
+
+func open_browser_radio_test() -> void:
+	var file := FileAccess.open("user://RadioTest-v0.5.html",FileAccess.WRITE)
+	if not file:
+		status = "Cannot create browser test page. Open RADIO-TEST.html beside the executable."
+		return
+	file.store_string(FileAccess.get_file_as_string("res://data/radio-test.html"))
+	file.close()
+	OS.shell_open(ProjectSettings.globalize_path("user://RadioTest-v0.5.html"))

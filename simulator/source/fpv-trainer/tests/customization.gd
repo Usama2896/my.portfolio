@@ -122,8 +122,7 @@ func run() -> void:
 		app.drone.gravity_scale = 0
 		app.drone.linear_damp = 0
 		app.drone.freeze = false
-		app.drone.position = Vector3(0,2,1.2)
-		app.drone.linear_velocity = Vector3(0,0,-2)
+		app.drone.call("request_reset",Transform3D(Basis.IDENTITY,Vector3(0,2,1.2)),Vector3(0,0,-2))
 		for i in range(90): await physics_frame
 		check(app.drone.position.z< -0.5 if size==0 else app.drone.position.z>0,"physics agrees: small drone passes, large drone hits the frame")
 	print(("PASS" if failures==0 else "FAIL")+": %d pole editing, rotation, persistence and drone-size checks" % checks)

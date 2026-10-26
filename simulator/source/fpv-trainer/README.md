@@ -1,4 +1,4 @@
-# AL JEHAD FPV OBSTACLE COURSE 0.4
+# AL JEHAD FPV OBSTACLE COURSE 0.5
 
 Independent offline FPV simulator in Godot 4.6.3, using the Compatibility renderer. No Liftoff assets or interfaces are used. The Windows export needs no engine installation or network connection.
 
@@ -19,9 +19,9 @@ Fly has an optional pilot name, a Practice/Acro Assessment mode list, and exactl
 - **Fly with Keyboard** sets keyboard input regardless of an old saved USB flag or a connected radio.
 - **Fly with Remote** selects the current USB radio. No separate input-enable switch is required.
 
-In v0.3 both old buttons called the same launch function using a saved USB flag. Enabling USB could therefore make the keyboard-labelled button fail remote checks too. v0.4 separates source selection from flight mode. Start blockers now open a visible setup dialog showing connection/mapping/calibration status and live throttle values, with Open Controls and Invert Throttle actions.
+In v0.3 both old buttons called the same launch function using a saved USB flag. Enabling USB could therefore make the keyboard-labelled button fail remote checks too. v0.5 separates source selection from flight mode. Start blockers now open a visible setup dialog showing connection/mapping/calibration status and live throttle values, with Open Controls and Invert Throttle actions.
 
-Low throttle is required to start/resume a remote flight. Duplicate mapped channels and unfinished calibration are diagnosed. Connection changes pause remote flight. A chosen radio is remembered by GUID and name; identical devices reporting identical names/GUIDs share a profile.
+A configured remote opens the flight view first. The body remains frozen and motors stay off until throttle is low for 0.2 seconds; low throttle is required to arm/resume, rather than to open the view. Duplicate mapped channels and unfinished calibration are diagnosed. Connection changes pause remote flight. A chosen radio is remembered by GUID and name; identical devices reporting identical names/GUIDs share a profile.
 
 ## Keyboard and remote controls
 
@@ -75,7 +75,9 @@ Defaults: 3 laps, 160-second qualifying time, 200-second cutoff, 100 points. Fir
 
 Timing starts at the first valid gate passage and finishes at the final station of the final lap, an approximation to the physical start-line rule. Pausing suspends time; this is not tamper-resistant competition software. Assessment uses calm conditions and Acro; mass/rates/FOV remain configurable.
 
-Flight uses simplified thrust/drag/rate control. Practice wind is an experimental constant-force approximation. Contact/crash classification uses a 3.5 m/s impact-speed threshold and cooldown. No motor/PID/battery/aerodynamic calibration to a real Luma 5 is established. No multiplayer, goggles output, replay or full trainee-management system is included.
+Flight uses simplified thrust/drag/rate control. Practice wind is an experimental constant-force approximation. Contact classification uses the strongest normal closing speed from PhysicsDirectBodyState3D, with a 3.5 m/s hard-impact threshold and cooldown. Direct-state contact vectors are already world-space. Hard impacts release steering control for 1.1 seconds, cut thrust, apply a bounded rebound/torque impulse, and let the rigid body tumble with reduced damping. Feedback includes a decaying camera offset/roll, flash and generated impact sound. Rebound material restitution is 0.28. Recovery preserves next station, lap, elapsed time and crash count, resets tunnel section progress, and places the drone near the current station entry. A remote recovery waits for low throttle before arming again. Assessment's second crash shows the impact before finishing as disqualified.
+
+Practice has Crash Mode and God Mode. God Mode retains physical collisions and touch feedback but suppresses crash counting, motor cut and reset. It does not disable collision geometry. Assessment ignores a saved God preference and always enforces crash rules. The impact/recovery model is an approximation, not calibrated real-world damage dynamics. No motor/PID/battery/aerodynamic calibration to a real Luma 5 is established. No multiplayer, goggles output, replay or full trainee-management system is included.
 
 ## Development, tests and export
 
@@ -91,8 +93,14 @@ Use a separate, fresh XDG_DATA_HOME for each test on Linux, since tests write te
     godot --headless --fixed-fps 60 --path . --script res://tests/yaw.gd
     godot --headless --fixed-fps 60 --path . --script res://tests/remote_launch.gd
     godot --headless --fixed-fps 60 --path . --script res://tests/customization.gd
+    godot --headless --fixed-fps 60 --path . --script res://tests/crashes.gd
+    node tests/radio_page.cjs
 
-313 checks passed: 114 general, 96 obstacle/spacing, 6 keyboard flight, 24 yaw, 35 launch/calibration/splash, 38 customization/size. The controller_input.gd adapter wraps native Godot input. Remote tests inject deterministic device/axis reports through that same interface and verify actual button signals, launch state, throttle-driven physics, inversion, calibration cancellation/persistence and disconnect behavior. This is distinct from physical USB testing. Clearance tests check both analytic gate progression and actual collisions for different sizes.
+For the native mouse-click check on Linux, use an X11/Xvfb display with libXtst and run:
+
+    DISPLAY=:99 python3 tests/popup_mouse.py
+
+339 checks passed: 331 Godot checks (114 general, 96 obstacle/spacing, 6 keyboard flight, 24 yaw, 29 remote launch/arming/calibration, 38 customization/size, 24 impact/recovery), seven JavaScript radio-page checks and one native rendered popup mouse-click check. The controller_input.gd adapter wraps native Godot input. Remote tests inject deterministic device/axis reports through that same interface and verify actual button signals, launch state, throttle-driven physics, inversion, calibration cancellation/persistence and disconnect behavior. This is distinct from physical USB testing. Clearance tests check both analytic gate progression and actual collisions for different sizes.
 
 Rendered screenshots were inspected using software OpenGL. Windows export and packed-resource startup were checked in Linux. Physical Windows performance and the revised TX16/Pocket launch require user retesting. The executable is unsigned; report warnings without disabling protection.
 
@@ -103,3 +111,9 @@ With official matching export templates installed:
 Output: build/al-jehad-windows/AlJehadFPV.exe and its matching PCK. Include external course.json, guides and licenses in the USB package. Cloud templates live under /workspace/fpv-tools/data/godot/export_templates/4.6.3.stable, selected using XDG_DATA_HOME=/workspace/fpv-tools/data. Official template SHA512 checksums were verified during setup. No runtime downloads occur.
 
 Godot engine: MIT, assets/GODOT-LICENSE.txt. DejaVu fonts: assets/FONT-LICENSE.txt. Geometry, UI and motor waveform are generated locally by this project.
+
+## Local browser radio diagnostic
+
+RADIO-TEST.html is included beside the executable and as data/radio-test.html in the resource pack. Controls can extract a versioned copy into the app data directory and open it in the default browser. The Gamepad API reads only controllers attached to the user's local machine. A user activation and initial focused window may be required; some browsers restrict local-file Gamepad access. In-app Copy Remote Report is the fallback. Nothing is sent over the network; CSP disables network connections. Reports contain device/axis and browser or game launch information, not credentials. Browser raw-axis indices may differ from Godot's controller mapping.
+
+Native popup tests use actual XTest pointer clicks with injected controller reports. Headless button-signal tests alone do not establish native mouse hit testing. The popup's Start button now opens a disarmed flight view when configuration is valid, irrespective of high throttle; it does not bypass low-throttle motor arming. Runtime reports include last launch state, current source, endpoints, inversion and raw/scaled axes to diagnose remaining hardware-specific failures without guessing a driver issue.

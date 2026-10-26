@@ -1,4 +1,4 @@
-AL JEHAD FPV OBSTACLE COURSE — VERSION 0.4
+AL JEHAD FPV OBSTACLE COURSE — VERSION 0.5
 BEGINNER GUIDE: USB, REMOTE, KEYBOARD AND CUSTOMIZATION
 
 A. COPY AND OPEN THE NEW VERSION
@@ -7,7 +7,7 @@ A. COPY AND OPEN THE NEW VERSION
 3. Right-click the ZIP, choose Extract All, then Extract.
 4. Open the AL-JEHAD-FPV folder. Double-click AlJehadFPV.exe.
 Keep all files together. A shortcut alone does not contain the simulator.
-5. The AL JEHAD opening screen appears for about two seconds, then the menu opens. Check that the screen says V0.4 so you know you opened the new version.
+5. The AL JEHAD opening screen appears for about two seconds, then the menu opens. Check that the screen says V0.5 so you know you opened the new version.
 No VS Code, Godot, Steam or Internet is needed to run it.
 
 B. THE TWO FLIGHT BUTTONS
@@ -48,20 +48,19 @@ If your radio uses another stick mode, map the movements you actually use.
     Throttle: fully DOWN -1, fully UP +1.
 Use Invert beside the movement if its direction is wrong. Centred roll/pitch/yaw should be near 0. Raise dead zone slightly if they twitch near centre.
 
-F. IF FLY WITH REMOTE DOES NOT START
-23. A setup window now explains the reason; the app should not silently remain on the menu.
-24. If it says throttle is too high, look at the live Throttle number. Fully DOWN should be near -1.00 and 0% power.
-25. If DOWN reads +1.00/100%, click Invert Throttle in that window, then Start Remote Flight. If the number does not respond to the throttle stick, use Open Controls and remap throttle.
-26. If it says calibration is unfinished, return to Controls and Confirm or Cancel it.
-27. If two movements share an axis, remap them to separate stick movements.
-28. If no remote is selected, connect it and choose its name in Controls.
-You can always close this window and use Fly with Keyboard instead.
+F. NEW REMOTE START AND DIAGNOSTICS
+23. Fly with Remote opens the flight view when the radio and confirmed mappings are valid. Motors stay OFF while the screen says Lower throttle to arm.
+24. Put throttle fully DOWN and keep it there briefly (0.2 seconds). The message changes to REMOTE ARMED. Now raise throttle gently.
+25. Throttle down should read -1.00 / 0%. If it reads +1.00 / 100%, use Invert Throttle in the flight view. If its number does not change, use Open Controls to map throttle.
+26. A setup popup is only for missing/invalid configuration: no selected device, unfinished calibration, or duplicate channels. Its text explains the problem. Start Remote Flight becomes available when those setup issues are resolved; high throttle does not trap you on that menu anymore.
+27. The popup Start button was also checked with an actual OS mouse click in a rendered test. If it still fails on your PC, click Copy Report in that window, or Copy remote diagnostic report in Controls, and paste the result into chat. It includes the device, mapping, raw/scaled values and last launch state.
+28. There is no direct USB bridge from your laptop into the cloud chat. The tests below run on YOUR laptop, where the radio is physically plugged in.
 
 G. FIRST REMOTE FLIGHT
-29. Put throttle fully DOWN. Click Fly with Remote.
+29. Put throttle fully DOWN. Click Fly with Remote and wait for REMOTE ARMED.
 30. Remote practice is Acro: it does NOT automatically level or hold height. Raise throttle slowly until it lifts, then use small inputs.
 31. To turn in place, keep the RIGHT stick centred and gently move the LEFT stick sideways. This is yaw. Turning does not brake motion if the drone is already moving.
-32. Enter pauses, R restarts, Esc opens the menu, F11 toggles full screen. Lower throttle before resuming or restarting.
+32. Enter pauses, R restarts, Esc opens the menu, F11 toggles full screen. Lower throttle before resuming. Restarting opens a disarmed flight view first.
 A connection change pauses remote flight. Reconnect, check the device and throttle, then restart.
 
 H. KEYBOARD FLIGHT
@@ -98,8 +97,26 @@ Zig Zag Depth is the total length of its pole line. 1 metre is about 3.28 feet.
 Save course locally when finished. Export course.json to back up a custom layout before restoring the supplied course.
 
 L. TROUBLESHOOTING AND LIMITS
-Old controls/menu still visible: close the old app and open AlJehadFPV.exe from the newly extracted V0.4 folder.
+Old controls/menu still visible: close the old app and open AlJehadFPV.exe from the newly extracted V0.5 folder.
 Slow frame rate: switch shadows OFF in Drone & Controls.
 Windows warning: note the exact wording; do not disable protection.
 Saved files remain in %APPDATA%/Godot/app_userdata/DTC Flight Lab/ to preserve your previous calibration and courses.
 This is a development release. New launch behavior has been checked with injected USB reports and cloud physics tests; it still needs a physical TX16/Pocket retest on Windows.
+
+M. CRASH MODE AND GOD MODE
+On the Fly screen, choose Practice, then select the collision mode.
+Crash Mode: a hard hit cuts the motors and lets the drone bounce/tumble, with a short screen flash, camera shake and impact sound. After about a second it restarts near the CURRENT obstacle. If gates 1 and 2 are complete and you crash at gate 3, you retry gate 3. Earlier gates, lap progress and elapsed time stay recorded. A tunnel restarts from its first section.
+After a remote crash, lower throttle again to re-arm before raising it.
+God Mode: the drone still bumps physical objects, but contacts do not count as crashes, cut motors or automatically reset you. It does not let you fly through solid objects.
+Light touches give feedback without a hard-crash penalty in either practice mode.
+Acro Assessment always uses crash rules: first crash costs 20 points; the second ends the assessment after the impact animation. God Mode cannot bypass assessment penalties.
+
+N. OFFLINE RADIO TEST IN YOUR BROWSER
+Open RADIO-TEST.html beside AlJehadFPV.exe. It should open in Edge or Chrome.
+Click Activate controller test, then move a stick. Keep the page focused initially.
+Select the radio if more than one device is listed. The A0/A1/etc bars show raw axes and observed travel. Browser axis order may differ from the game.
+You can keep the page beside the simulator or use Alt+Tab between them.
+Click Copy report and paste it in chat. No report is uploaded automatically.
+The same page opens from Controls > Open offline browser Radio Test.
+If your browser restricts gamepads on local files, use the app's Copy remote diagnostic report instead. You do not need to install drivers just to try this page.
+This page is a controller diagnostic, not a browser version of the simulator, and does not give the cloud assistant direct access to your USB device.

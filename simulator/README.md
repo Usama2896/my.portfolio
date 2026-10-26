@@ -1,50 +1,52 @@
-# AL JEHAD FPV OBSTACLE COURSE — v0.4
+# AL JEHAD FPV OBSTACLE COURSE — v0.5
 
 **[Download Windows ZIP — about 36 MB](https://github.com/Usama2896/my.portfolio/raw/refs/heads/fpv-simulator-prototype/simulator/FPVTrainer-Windows-Prototype.zip)**
 
-## Open this version
+Extract into a new folder. Open **AL-JEHAD-FPV/AlJehadFPV.exe** and check **V0.5**. No VS Code, engine installation or Internet is required.
 
-1. Extract the ZIP into a new folder.
-2. Open **AL-JEHAD-FPV** and run **AlJehadFPV.exe**. Keep the supporting files together.
-3. Watch the two-second **AL JEHAD** opening screen; the menu should say **V0.4**.
-4. Choose Practice or Acro Assessment, then **Fly with Keyboard** or **Fly with Remote**.
+## Remote launch: view first, motors second
 
-Pilot name is an optional text field, not a launch option. No VS Code, Godot, Steam, account or Internet connection is required to run the export.
+Choose **Fly with Remote**. A configured radio now opens the actual flight view even if throttle is high. Motors remain off and the body stays frozen until throttle stays near **−1.00 / 0% for 0.2 seconds**. Then **REMOTE ARMED** appears; raise throttle gently. The drone starts near ground level rather than dropping from an airborne spawn.
 
-## Remote-start correction
+High throttle no longer leaves you retrying a menu Start button. Missing devices, unfinished calibration and duplicate channels still have explicit setup messages. The popup Start handler is deferred outside its window event. It was checked with an actual X11 mouse click on the rendered button, in addition to simulated USB reports.
 
-Previously, enabling USB made both launch buttons follow the same remote checks, even the button labelled keyboard practice. The separate USB-enable switch is now removed. The two new buttons explicitly choose their input source.
+The user's TX16 input readings of −1 down/+1 up sound correct. Those readings alone do not establish the cause of the previous Windows launch failure. This revised flow needs a physical retest. **Copy Report** in the popup or **Copy remote diagnostic report** in Controls supplies useful launch/axis details if it still fails.
 
-If a remote cannot start, a setup window shows the reason and live throttle readings. It provides **Open Controls**, **Invert Throttle** and **Start Remote Flight**. Low throttle is still required. Throttle calibration now detects direction when confirmed with the stick fully down. Unfinished calibration can be cancelled without changing confirmed mappings.
+## Two practice collision modes
 
-**[Beginner remote guide: REMOTE-SETUP.txt](REMOTE-SETUP.txt)** is also inside the ZIP and available in Drone & Controls. Your earlier calibration, courses and records remain in the existing DTC Flight Lab data folder.
+- **Crash Mode:** hard impacts cut motors, allow physical rebound and tumble, and add brief camera shake, flash and impact sound. After roughly 1.1 seconds, restart near the current obstacle. Earlier gates and lap progress stay complete. Remote recovery requires low throttle to re-arm.
+- **God Mode:** physical bumps remain, but there is no crash penalty, motor cut or automatic reset. It is invulnerability, not flying through solid objects.
 
-## Added customization
+Light touches give feedback without a hard-crash penalty. Assessment always enforces its existing first-crash deduction and second-crash disqualification; God Mode cannot bypass scoring rules.
 
-- **Individual poles:** select Zig Zag, then Pole 1–5. Change Pole X/Z or drag its orange P1–P5 map point. The chosen pole turns orange and its passage target follows it.
-- **Drone sizes:** 2.5, 5, 7, 10, 13 and 16–17 inches. These have approximate overall spans; enter a measured span for clearance. Size changes the collision envelope and gate passage checks, not the flight model.
-- **Station transforms:** X/Z position, Y height, and yaw/pitch/roll through a full 360°. Shapes stay unchanged while moving or rotating.
-- **Whole-course rotation:** turn the layout around station 1 while preserving gaps and shapes.
-- Existing 17 obstacle types, station spacing, course import/export, local records and CSV export remain available.
+## Test your radio locally alongside the game
 
-Click **Save course locally** after course edits. Drone and controller settings save automatically. Export a custom course before restoring the supplied layout.
+Double-click **RADIO-TEST.html** inside the ZIP, then **Activate controller test**. The offline page shows connected controllers, raw axis bars, observed ranges and buttons. **Copy report** lets you paste the readings into chat. No data is uploaded automatically. It also opens from Controls > Open offline browser Radio Test.
 
-## Actual application screenshots
+This reads USB input on the PC where you open it. Plugging a radio into your laptop does not make it available to the assistant's cloud workspace. Some browsers restrict the Gamepad API on local files; the in-app diagnostic report is the fallback. Browser axis order can differ from Godot.
 
-![Two-second opening screen](screenshots/splash.png)
-![Two explicit launch buttons](screenshots/home.png)
-![Individual pole positions and map editing](screenshots/poles.png)
-![Drone sizes and controls](screenshots/controls.png)
-![Remote-start explanation when no device is connected](screenshots/remote-check.png)
+**[Beginner guide](REMOTE-SETUP.txt)** · [Radio Test source](RADIO-TEST.html)
 
-[Flight](screenshots/flight.png) · [Hexagon](screenshots/hexagon.png) · [Triple ring](screenshots/triple.png) · [Tunnel](screenshots/tunnel.png) · [Triangle](screenshots/triangle.png) · [Diamond](screenshots/diamond.png) · [Dive ring](screenshots/dive.png)
+## Retained features
 
-## Verification and practical limits
+17 obstacle types; individual five-pole Zig Zag editing; XYZ and yaw/pitch/roll transforms; station gaps, course scaling/rotation and JSON import/export; 2.5, 5, 7, 10, 13 and 16–17-inch size categories; local pilot records and CSV export; assisted keyboard practice and Acro assessment. Existing data stays in the DTC Flight Lab user-data folder.
 
-**313 automated checks passed:** 114 general checks, 96 obstacle/spacing checks, 24 yaw checks, 6 keyboard-flight checks, 35 remote-launch/calibration/splash checks, and 38 new customization/size checks. Remote tests inject deterministic USB reports into the same production input path and verify actual throttle-driven lift. Actual button signals, high-throttle blockers, unfinished calibration, inversion, device selection and disconnect behavior are covered. Small-versus-large drone clearance was checked using both gate progression and physical collisions.
+## Actual rendered views
 
-Rendered views were inspected. Windows export and packed-resource startup were checked in Linux. The user confirmed radio detection/calibration on an earlier Windows version; the revised v0.4 remote launch still needs a physical TX16/Pocket retest. Flight dynamics, course dimensions and crash classification remain approximate. This is a development release, not yet a calibrated commercial simulator.
+![New launch and practice modes](screenshots/home.png)
+![Remote flight waiting for low throttle — simulated radio](screenshots/remote-arming.png)
+![Hard collision feedback](screenshots/crash-impact.png)
+![Checkpoint recovery](screenshots/checkpoint.png)
+![God Mode selection](screenshots/god-mode.png)
 
-The Windows executable is unsigned. If Windows shows a warning, report the exact wording rather than disabling protection.
+[Opening screen](screenshots/splash.png) · [Pole editor](screenshots/poles.png) · [Controls](screenshots/controls.png)
 
-[Full development guide and limitations](source/fpv-trainer/README.md) · [Source project](source/fpv-trainer)
+## Verification
+
+331 Godot checks passed: 114 general, 96 obstacle/spacing, 6 keyboard flight, 24 yaw, 29 remote launch/arming/calibration, 38 customization/size and 24 physical impact/recovery checks. Seven browser-page checks passed with simulated Gamepad data. One rendered native mouse-click check verified the actual popup Start button. This is **339 checks total**, plus export/resource startup checks.
+
+Physics checks exercise actual obstacle collisions, rebound, motor cut, tumble, checkpoint progress, God Mode and assessment enforcement, including a yawed collision. Remote checks use injected USB reports through the production adapter; they do not replace testing the physical TX16 on Windows. The browser page also needs a real-controller test locally. Windows export and packed resources are validated in Linux; Windows frame rate and exact drone realism are not established.
+
+This remains a development simulator with approximate flight physics, impact thresholds and course measurements. The executable is unsigned; report Windows warnings without disabling protection.
+
+[Full development guide](source/fpv-trainer/README.md)

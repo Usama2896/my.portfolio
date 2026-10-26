@@ -110,9 +110,11 @@ func run() -> void:
 	scene.impact_speed = 5
 	scene.on_contact(null)
 	check(scene.crashes==1 and not scene.finished,"first crash allows continued assessment")
+	scene.update_crash_state(1.2)
 	scene.contact_cooldown = 0
 	scene.on_contact(null)
-	check(scene.finished and scene.crashes==2,"second crash disqualifies")
+	scene.update_crash_state(1.2)
+	check(scene.finished and scene.crashes==2,"second crash disqualifies after impact")
 	print(("PASS" if failures==0 else "FAIL")+": %d checks — shapes, directional gates, tunnel sections, laps, editing, persistence, modules and crash rules" % checks)
 	scene.queue_free()
 	await process_frame
