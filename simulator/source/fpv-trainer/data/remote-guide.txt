@@ -1,4 +1,4 @@
-AL JEHAD FPV OBSTACLE COURSE — VERSION 0.5
+AL JEHAD FPV OBSTACLE COURSE — VERSION 0.6
 BEGINNER GUIDE: USB, REMOTE, KEYBOARD AND CUSTOMIZATION
 
 A. COPY AND OPEN THE NEW VERSION
@@ -7,7 +7,7 @@ A. COPY AND OPEN THE NEW VERSION
 3. Right-click the ZIP, choose Extract All, then Extract.
 4. Open the AL-JEHAD-FPV folder. Double-click AlJehadFPV.exe.
 Keep all files together. A shortcut alone does not contain the simulator.
-5. The AL JEHAD opening screen appears for about two seconds, then the menu opens. Check that the screen says V0.5 so you know you opened the new version.
+5. The AL JEHAD opening screen appears for about two seconds, then the menu opens. Check that the screen says V0.6 so you know you opened the new version.
 No VS Code, Godot, Steam or Internet is needed to run it.
 
 B. THE TWO FLIGHT BUTTONS
@@ -97,7 +97,7 @@ Zig Zag Depth is the total length of its pole line. 1 metre is about 3.28 feet.
 Save course locally when finished. Export course.json to back up a custom layout before restoring the supplied course.
 
 L. TROUBLESHOOTING AND LIMITS
-Old controls/menu still visible: close the old app and open AlJehadFPV.exe from the newly extracted V0.5 folder.
+Old controls/menu still visible: close the old app and open AlJehadFPV.exe from the newly extracted V0.6 folder.
 Slow frame rate: switch shadows OFF in Drone & Controls.
 Windows warning: note the exact wording; do not disable protection.
 Saved files remain in %APPDATA%/Godot/app_userdata/DTC Flight Lab/ to preserve your previous calibration and courses.
@@ -120,3 +120,32 @@ Click Copy report and paste it in chat. No report is uploaded automatically.
 The same page opens from Controls > Open offline browser Radio Test.
 If your browser restricts gamepads on local files, use the app's Copy remote diagnostic report instead. You do not need to install drivers just to try this page.
 This page is a controller diagnostic, not a browser version of the simulator, and does not give the cloud assistant direct access to your USB device.
+
+O. NEW UPWARD U-TUNNEL (V0.6)
+The old U-tunnel is replaced using the supplied photograph.
+Enter through the horizontal mouth, follow the covered tube, then climb around
+the bend and leave through the OPEN TOP. Follow the target points as they rise.
+Flying straight ahead cannot finish it. The net sides are physical walls.
+The editor's existing width, opening height, depth, position and rotation fields
+still work. Existing saved U-tunnel stations update automatically; no reset needed.
+Dimensions are approximate, so adjust them to your measured course if available.
+
+P. CLEARER VISIBILITY
+Open Drone & Controls. High-visibility obstacles is on by default.
+If objects look too small, click Closer view (FOV 80). Lower FOV makes things
+look larger without changing their physical size. You can change FOV manually.
+Only the current obstacle's labels show in flight by default, and labels hide
+when too close to the camera. Turn on Show all labels during flight if wanted.
+High visibility can also be turned off. These settings save automatically.
+
+Q. OPTIONAL BEGINNER STABILITY
+On Fly, choose Beginner Stabilized Practice in Flight mode. Then choose Keyboard
+or Remote using the same two buttons. Existing ordinary remote Practice is still
+Acro. Assessment is always Acro; beginner assistance cannot change its rules.
+Beginner mode smooths steering, limits tilt, levels the drone when sticks are
+released, and gently slows horizontal drift when pitch/roll are centred.
+With a REMOTE: arm at low throttle as usual. Raise throttle above halfway to
+climb; bring it near halfway to hold height. Below halfway descends; fully down
+cuts the motors. Keep the right stick centred when you want to stop tilting.
+With a KEYBOARD: Up/Down climb/descend; release to hold height. Other keys stay
+the same. This is a learning aid, not an exact copy of a commercial flight model.

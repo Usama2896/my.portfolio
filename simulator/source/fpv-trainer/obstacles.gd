@@ -40,6 +40,7 @@ static func sections(data: Dictionary) -> Array[Dictionary]:
 	var kind: String = data.get("type","ring")
 	var depth: float = data.get("depth",3.0)
 	var out: Array[Dictionary] = []
+	if kind=="u_tunnel": return upward_sections(data)
 	var count := 1
 	if kind in ["tunnel","corridor","u_tunnel"]: count = 5
 	if kind == "zigzag": count = 5
@@ -90,7 +91,10 @@ static func holes(data: Dictionary) -> Array[Vector2]:
 	return [Vector2.ZERO]
 
 static func fits(data: Dictionary, point: Vector3, section: int, radius := 0.18) -> bool:
-	var center: Vector3 = sections(data)[section].center
+	var frame: Dictionary = sections(data)[section]
+	var center: Vector3 = frame.center
+	var basis_: Basis = frame.get("basis",Basis.IDENTITY)
+	var relative: Vector3 = basis_.inverse()*(point-center)
 	var width: float = data.width
 	var height: float = data.opening_height
 	if data.get("type","") == "triple":
@@ -100,7 +104,7 @@ static func fits(data: Dictionary, point: Vector3, section: int, radius := 0.18)
 	if data.get("type","") == "ladder": height /= 3.0
 	for offset in holes(data):
 		var poly := polygon(data.get("type","ring"),width,height)
-		var p := Vector2(point.x-center.x,point.y-center.y)-offset
+		var p := Vector2(relative.x,relative.y)-offset
 		if not Geometry2D.is_point_in_polygon(p,poly): continue
 		var safe := true
 		for i in range(poly.size()):
@@ -116,6 +120,9 @@ static func build(parent: Node3D, data: Dictionary, index: int) -> Node3D:
 	gate.rotation_degrees = Vector3(float(data.get("pitch_degrees",0)),float(data.yaw_degrees),float(data.get("roll_degrees",0)))
 	var kind: String = data.get("type","ring")
 	if kind == "dive": gate.rotation_degrees.x -= 90
+	if kind=="u_tunnel":
+		build_upward_tunnel(gate,data,index)
+		return gate
 	var color := Color("268575")
 	if kind in ["kz","tunnel"]: color = Color("bb6339")
 	elif kind in ["precision","zigzag","triple"]: color = Color("bda13c")
@@ -238,3 +245,92 @@ static func ensure_poles(data: Dictionary) -> void:
 	if not data.has("pole_offsets"):
 		data.pole_offsets = []
 		for i in range(5): data.pole_offsets.append({"x":0.0,"z":0.0})
+
+static func upward_sections(data: Dictionary) -> Array[Dictionary]:
+	# Horizontal inlet (-Z), quarter-circle elbow, vertical neck (+Y).
+	var depth: float = data.depth
+	var radius := maxf(1.25,float(data.opening_height)*0.65)
+	var neck := maxf(0.8,float(data.opening_height)*0.5)
+	var frames: Array[Dictionary] = []
+	for i in range(3):
+		frames.append({"center":Vector3(0,0,-depth*i/2),"basis":Basis.IDENTITY,"kind":"u_tunnel"})
+	for i in range(1,7):
+		var angle := PI*0.5*i/6
+		frames.append({"center":Vector3(0,radius*(1-cos(angle)),-depth-radius*sin(angle)),"basis":Basis(Vector3.RIGHT,angle),"kind":"u_tunnel"})
+	frames.append({"center":Vector3(0,radius+neck,-depth-radius),"basis":Basis(Vector3.RIGHT,PI/2),"kind":"u_tunnel"})
+	return frames
+
+static func build_upward_tunnel(gate: Node3D, data: Dictionary, index: int) -> void:
+	var frames := upward_sections(data)
+	var poly := polygon("u_tunnel",data.width,data.opening_height)
+	var cloth := SurfaceTool.new()
+	cloth.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var distance_ := 0.0
+	for i in range(frames.size()):
+		var center: Vector3 = frames[i].center
+		var basis_: Basis = frames[i].basis
+		for j in range(poly.size()):
+			var next := (j+1)%poly.size()
+			var a: Vector3 = center+basis_*Vector3(poly[j].x,poly[j].y,0)
+			var b: Vector3 = center+basis_*Vector3(poly[next].x,poly[next].y,0)
+			beam(gate,a,b,0.075,Color("bca16b"))
+			if i==0: continue
+			var old_center: Vector3 = frames[i-1].center
+			var old_basis: Basis = frames[i-1].basis
+			var c: Vector3 = old_center+old_basis*Vector3(poly[j].x,poly[j].y,0)
+			var d: Vector3 = old_center+old_basis*Vector3(poly[next].x,poly[next].y,0)
+			if j%8==0: beam(gate,a,c,0.045,Color("677254"))
+			var segment_length := center.distance_to(old_center)
+			var u0 := float(j)/poly.size()
+			var u1 := float(j+1)/poly.size()
+			var v0 := distance_/0.14
+			var v1 := (distance_+segment_length)/0.14
+			var vertices := [c,d,a,d,b,a]
+			var uv := [Vector2(u0,v0),Vector2(u1,v0),Vector2(u0,v1),Vector2(u1,v0),Vector2(u1,v1),Vector2(u0,v1)]
+			for n in range(vertices.size()):
+				cloth.set_uv(uv[n])
+				cloth.add_vertex(vertices[n])
+		if i>0: distance_ += center.distance_to(frames[i-1].center)
+		# Two horizontal-section stands; keep the path and openings unobstructed.
+		if i==0 or i==2:
+			for side in [-1,1]:
+				var x: float = side*float(data.width)*0.35355
+				beam(gate,center+Vector3(x,-float(data.opening_height)*0.35355,0),center+Vector3(x,-float(data.height),0),0.06,Color("344943"))
+	cloth.generate_normals()
+	var shell := MeshInstance3D.new()
+	shell.name = "UpwardNetShell"
+	shell.mesh = cloth.commit()
+	var shader := Shader.new()
+	shader.code = """shader_type spatial;
+	render_mode cull_disabled;
+	void fragment(){
+	 vec2 grid=fract(vec2(UV.x*48.0,UV.y));
+	 float thread=max(1.0-step(0.16,grid.x),1.0-step(0.14,grid.y));
+	 ALBEDO=vec3(0.48,0.43,0.28);ROUGHNESS=0.95;
+	 ALPHA=thread;ALPHA_SCISSOR_THRESHOLD=0.5;
+	}
+	"""
+	var net := ShaderMaterial.new()
+	net.shader = shader
+	shell.material_override = net
+	gate.add_child(shell)
+	shell.create_trimesh_collision()
+	for body in shell.get_children():
+		for shape in body.get_children():
+			if shape is CollisionShape3D and shape.shape is ConcavePolygonShape3D: shape.shape.backface_collision = true
+	var sign_ := Label3D.new()
+	sign_.text = "%02d U-TUNNEL · UPWARD EXIT" % [index+1]
+	sign_.position = frames[-1].center+Vector3(0,0.7,0)
+	sign_.font_size = 38
+	sign_.pixel_size = 0.0055
+	sign_.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	gate.add_child(sign_)
+	for end in [0,frames.size()-1]:
+		var arrow := Label3D.new()
+		arrow.text = "ENTER →" if end==0 else "EXIT ↑"
+		arrow.position = frames[end].center+Vector3(0,float(data.opening_height)/2+0.2,0) if end==0 else frames[end].center+Vector3(0,0.3,0)
+		arrow.font_size = 34
+		arrow.pixel_size = 0.006
+		arrow.modulate = Color("a8ffd3")
+		arrow.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		gate.add_child(arrow)

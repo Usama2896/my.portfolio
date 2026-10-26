@@ -1,52 +1,45 @@
-# AL JEHAD FPV OBSTACLE COURSE — v0.5
+# AL JEHAD FPV OBSTACLE COURSE — v0.6
 
 **[Download Windows ZIP — about 36 MB](https://github.com/Usama2896/my.portfolio/raw/refs/heads/fpv-simulator-prototype/simulator/FPVTrainer-Windows-Prototype.zip)**
 
-Extract into a new folder. Open **AL-JEHAD-FPV/AlJehadFPV.exe** and check **V0.5**. No VS Code, engine installation or Internet is required.
+Close the older app, extract into a new folder, and run **AL-JEHAD-FPV/AlJehadFPV.exe**. Check **V0.6**. Existing calibration, courses and records remain in the same user-data folder.
 
-## Remote launch: view first, motors second
+## Photo-based upward U-tunnel
 
-Choose **Fly with Remote**. A configured radio now opens the actual flight view even if throttle is high. Motors remain off and the body stays frozen until throttle stays near **−1.00 / 0% for 0.2 seconds**. Then **REMOTE ARMED** appears; raise throttle gently. The drone starts near ground level rather than dropping from an airborne spawn.
+The old horizontal curved tube is replaced with a net-covered tunnel matching the supplied photo's route: **enter horizontally → travel through the tube → turn upward → exit through the open top**.
 
-High throttle no longer leaves you retrying a menu Start button. Missing devices, unfinished calibration and duplicate channels still have explicit setup messages. The popup Start handler is deferred outside its window event. It was checked with an actual X11 mouse click on the rendered button, in addition to simulated USB reports.
+The entrance and upward exit are both open; the net walls have collision. Ten oriented checkpoints follow the straight section, curved elbow and vertical neck. Flying straight through or descending through the top cannot complete the obstacle. Existing saved U-tunnel stations use the replacement automatically; no course reset is needed. Dimensions remain approximate and can be adjusted with the existing editor controls.
 
-The user's TX16 input readings of −1 down/+1 up sound correct. Those readings alone do not establish the cause of the previous Windows launch failure. This revised flow needs a physical retest. **Copy Report** in the popup or **Copy remote diagnostic report** in Controls supplies useful launch/axis details if it still fails.
+![Replacement U-tunnel with upward exit](screenshots/u-tunnel-upward.png)
+![View into the horizontal entrance](screenshots/u-tunnel-entry.png)
 
-## Two practice collision modes
+## Visibility controls
 
-- **Crash Mode:** hard impacts cut motors, allow physical rebound and tumble, and add brief camera shake, flash and impact sound. After roughly 1.1 seconds, restart near the current obstacle. Earlier gates and lap progress stay complete. Remote recovery requires low throttle to re-arm.
-- **God Mode:** physical bumps remain, but there is no crash penalty, motor cut or automatic reset. It is invulnerability, not flying through solid objects.
+High-visibility obstacles is ON by default, with brighter frame contrast and slightly stronger ambient lighting. Flight labels show only the current obstacle by default and hide when too close to the camera. Editor overview labels remain available.
 
-Light touches give feedback without a hard-crash penalty. Assessment always enforces its existing first-crash deduction and second-crash disqualification; God Mode cannot bypass scoring rules.
+In **Drone & Controls**, use **Closer view (FOV 80)** if obstacles appear too small or distant. You can also adjust FOV manually, switch high visibility off, or show all flight labels. These affect the view rather than obstacle dimensions or collision rules.
 
-## Test your radio locally alongside the game
+## Optional Beginner Stabilized Practice
 
-Double-click **RADIO-TEST.html** inside the ZIP, then **Activate controller test**. The offline page shows connected controllers, raw axis bars, observed ranges and buttons. **Copy report** lets you paste the readings into chat. No data is uploaded automatically. It also opens from Controls > Open offline browser Radio Test.
+On Fly, choose **Beginner Stabilized Practice** from Flight mode, then Fly with Keyboard or Fly with Remote.
 
-This reads USB input on the PC where you open it. Plugging a radio into your laptop does not make it available to the assistant's cloud workspace. Some browsers restrict the Gamepad API on local files; the in-app diagnostic report is the fallback. Browser axis order can differ from Godot.
+It adds softer steering, auto-level, limited tilt and gentle braking when sticks are centred. Remote throttle near halfway holds height; above halfway climbs, below halfway descends, and fully down still cuts motors. Raise it above halfway to lift off, then centre it to hold height. Low-throttle arming still applies.
 
-**[Beginner guide](REMOTE-SETUP.txt)** · [Radio Test source](RADIO-TEST.html)
+Ordinary remote Practice keeps Acro behavior, and Acro Assessment always stays Acro. This is an approximate learning aid, not a calibrated real-flight autopilot.
 
-## Retained features
+![Beginner mode selection](screenshots/beginner-mode.png)
+![Visibility settings](screenshots/visibility-settings.png)
 
-17 obstacle types; individual five-pole Zig Zag editing; XYZ and yaw/pitch/roll transforms; station gaps, course scaling/rotation and JSON import/export; 2.5, 5, 7, 10, 13 and 16–17-inch size categories; local pilot records and CSV export; assisted keyboard practice and Acro assessment. Existing data stays in the DTC Flight Lab user-data folder.
+## Retained workflow
 
-## Actual rendered views
-
-![New launch and practice modes](screenshots/home.png)
-![Remote flight waiting for low throttle — simulated radio](screenshots/remote-arming.png)
-![Hard collision feedback](screenshots/crash-impact.png)
-![Checkpoint recovery](screenshots/checkpoint.png)
-![God Mode selection](screenshots/god-mode.png)
-
-[Opening screen](screenshots/splash.png) · [Pole editor](screenshots/poles.png) · [Controls](screenshots/controls.png)
+The working remote launch/arming flow, Crash Mode/God Mode and checkpoint recovery, 17 obstacle choices, individual pole editing, drone-size categories, course transforms/spacing, local results and CSV export remain available. The offline **RADIO-TEST.html** and **[beginner guide](REMOTE-SETUP.txt)** are included in the ZIP. No Internet, VS Code or engine installation is required to run the export.
 
 ## Verification
 
-331 Godot checks passed: 114 general, 96 obstacle/spacing, 6 keyboard flight, 24 yaw, 29 remote launch/arming/calibration, 38 customization/size and 24 physical impact/recovery checks. Seven browser-page checks passed with simulated Gamepad data. One rendered native mouse-click check verified the actual popup Start button. This is **339 checks total**, plus export/resource startup checks.
+423 checks passed: 415 Godot checks (129 general, 101 obstacle/spacing, 6 keyboard flight, 24 yaw, 29 remote launch/arming, 38 customization/size, 24 impact/recovery, 47 upward-tunnel, 17 stability/visibility), seven local radio-page checks and one rendered native popup mouse-click check.
 
-Physics checks exercise actual obstacle collisions, rebound, motor cut, tumble, checkpoint progress, God Mode and assessment enforcement, including a yawed collision. Remote checks use injected USB reports through the production adapter; they do not replace testing the physical TX16 on Windows. The browser page also needs a real-controller test locally. Windows export and packed resources are validated in Linux; Windows frame rate and exact drone realism are not established.
+Tunnel checks include ordered horizontal-to-upward passage, reverse/straight-exit rejection, transformed stations, physical side walls, open inlet/outlet and unobstructed centre path. Stability checks include remote climb/height hold, auto-level, drift braking, low-throttle motor cut and Acro assessment isolation. Rendered tunnel and entry views were inspected; Windows export/resource startup was checked in Linux.
 
-This remains a development simulator with approximate flight physics, impact thresholds and course measurements. The executable is unsigned; report Windows warnings without disabling protection.
+The user confirmed the previous version's remote/crash workflow was working. The new geometry and optional beginner mode need practical feedback on that PC. Dimensions, dynamics and assistance remain approximations. The executable is unsigned; report Windows warnings without disabling protection.
 
 [Full development guide](source/fpv-trainer/README.md)

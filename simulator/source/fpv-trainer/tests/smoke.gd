@@ -48,7 +48,8 @@ func run() -> void:
 				var center: Vector3 = sections[s].center
 				var hole: Vector2 = O.holes(data)[0]
 				center += Vector3(hole.x,hole.y,0)
-				scene.check_gate(gate.to_global(center+Vector3(0,0,0.1)),gate.to_global(center-Vector3(0,0,0.1)))
+				var direction: Vector3 = sections[s].get("basis",Basis.IDENTITY)*Vector3(0,0,0.1)
+				scene.check_gate(gate.to_global(center+direction),gate.to_global(center-direction))
 				if s<sections.size()-1: check(scene.next_gate==index,"multi-section obstacle requires exit")
 	check(scene.finished and scene.lap==3,"three complete laps finish")
 	check(scene.read_results().size()==1,"one session saved")

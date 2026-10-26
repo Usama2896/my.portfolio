@@ -1,4 +1,4 @@
-# AL JEHAD FPV OBSTACLE COURSE 0.5
+# AL JEHAD FPV OBSTACLE COURSE 0.6
 
 Independent offline FPV simulator in Godot 4.6.3, using the Compatibility renderer. No Liftoff assets or interfaces are used. The Windows export needs no engine installation or network connection.
 
@@ -27,7 +27,7 @@ A configured remote opens the flight view first. The body remains frozen and mot
 
 Keyboard practice defaults to altitude assistance and auto-level. Up/Down climb/descend; releasing holds height approximately. W/S tilt forward/back; A/D bank left/right. Q or Left arrow turns left; E or Right arrow turns right. Momentum is not instantly braked. Enter pauses, R restarts, Esc returns to menu, F11 toggles full screen.
 
-Remote practice and every assessment use Acro, with no auto-level or height hold. A usual Mode 2 mapping is right stick roll/pitch, left stick yaw/throttle. The FPV camera is attached to the drone; there is no separate gimbal. The heading display makes yaw rotation visible.
+Ordinary remote practice and every assessment use Acro, with no auto-level or height hold. The separate optional Beginner Stabilized Practice mode adds assistance as described below. A usual Mode 2 mapping is right stick roll/pitch, left stick yaw/throttle. The FPV camera is attached to the drone; there is no separate gimbal. The heading display makes yaw rotation visible.
 
 Read **REMOTE-SETUP.txt** in the Windows folder, or the in-app beginner guide in Drone & Controls. Select the intended radio, map one movement at a time, move through both endpoints, return roll/pitch/yaw to centre and confirm. For throttle, put it fully DOWN before confirming; this identifies its low end and automatically sets inversion. A mid-travel throttle confirmation is rejected. Cancel restores confirmed mappings; intermediate mapping changes are not persisted by unrelated settings saves.
 
@@ -94,13 +94,15 @@ Use a separate, fresh XDG_DATA_HOME for each test on Linux, since tests write te
     godot --headless --fixed-fps 60 --path . --script res://tests/remote_launch.gd
     godot --headless --fixed-fps 60 --path . --script res://tests/customization.gd
     godot --headless --fixed-fps 60 --path . --script res://tests/crashes.gd
+    godot --headless --fixed-fps 60 --path . --script res://tests/upward_tunnel.gd
+    godot --headless --fixed-fps 60 --path . --script res://tests/stability_visibility.gd
     node tests/radio_page.cjs
 
 For the native mouse-click check on Linux, use an X11/Xvfb display with libXtst and run:
 
     DISPLAY=:99 python3 tests/popup_mouse.py
 
-339 checks passed: 331 Godot checks (114 general, 96 obstacle/spacing, 6 keyboard flight, 24 yaw, 29 remote launch/arming/calibration, 38 customization/size, 24 impact/recovery), seven JavaScript radio-page checks and one native rendered popup mouse-click check. The controller_input.gd adapter wraps native Godot input. Remote tests inject deterministic device/axis reports through that same interface and verify actual button signals, launch state, throttle-driven physics, inversion, calibration cancellation/persistence and disconnect behavior. This is distinct from physical USB testing. Clearance tests check both analytic gate progression and actual collisions for different sizes.
+423 checks passed: 415 Godot checks (129 general, 101 obstacle/spacing, 6 keyboard flight, 24 yaw, 29 remote launch/arming/calibration, 38 customization/size, 24 impact/recovery, 47 upward-tunnel, 17 stability/visibility), seven JavaScript radio-page checks and one native rendered popup mouse-click check. The controller_input.gd adapter wraps native Godot input. Remote tests inject deterministic device/axis reports through that same interface and verify actual button signals, launch state, throttle-driven physics, inversion, calibration cancellation/persistence and disconnect behavior. This is distinct from physical USB testing. Clearance tests check both analytic gate progression and actual collisions for different sizes.
 
 Rendered screenshots were inspected using software OpenGL. Windows export and packed-resource startup were checked in Linux. Physical Windows performance and the revised TX16/Pocket launch require user retesting. The executable is unsigned; report warnings without disabling protection.
 
@@ -117,3 +119,15 @@ Godot engine: MIT, assets/GODOT-LICENSE.txt. DejaVu fonts: assets/FONT-LICENSE.t
 RADIO-TEST.html is included beside the executable and as data/radio-test.html in the resource pack. Controls can extract a versioned copy into the app data directory and open it in the default browser. The Gamepad API reads only controllers attached to the user's local machine. A user activation and initial focused window may be required; some browsers restrict local-file Gamepad access. In-app Copy Remote Report is the fallback. Nothing is sent over the network; CSP disables network connections. Reports contain device/axis and browser or game launch information, not credentials. Browser raw-axis indices may differ from Godot's controller mapping.
 
 Native popup tests use actual XTest pointer clicks with injected controller reports. Headless button-signal tests alone do not establish native mouse hit testing. The popup's Start button now opens a disarmed flight view when configuration is valid, irrespective of high throttle; it does not bypass low-throttle motor arming. Runtime reports include last launch state, current source, endpoints, inversion and raw/scaled axes to diagnose remaining hardware-specific failures without guessing a driver issue.
+
+## V0.6 upward tunnel, visibility and beginner assistance
+
+The u_tunnel identifier is retained, so existing saved courses receive the replacement geometry without resetting station dimensions or user edits. It has a straight horizontal entry along local −Z, a quarter-circle elbow toward +Y, and a vertical open neck. Bend radius is max(1.25, opening_height × 0.65); neck length is max(0.8, opening_height × 0.5). Depth controls the straight entry length. These are proportional approximations to the supplied photo, not measured dimensions.
+
+Ten sections carry centre and Basis transforms. Progression and clearance use each section's own plane, including upward crossing at the final outlet. The generated net uses alpha-scissored threads for visibility; its continuous collision shell prevents passage through the visual net holes. Ring supports and joints leave the inlet, centre path and top opening clear. Whole-station yaw/pitch/roll still transforms the full route.
+
+High visibility brightens only obstacle materials and modestly increases ambient energy. It is reversible and does not accumulate colour changes. Procedural labels are explicitly tracked with owned=false, show the current target during flight by default, and hide within 2.5 m to avoid covering the camera. The editor retains all labels. A Closer view button sets FOV to 80; physical geometry is unchanged.
+
+Beginner Stabilized Practice is opt-in. Steering is exponentially smoothed (rate 8/s), pitch/roll target about ±15°, and yaw is gentler. Releasing controls self-levels; centred pitch/roll add horizontal braking. For remote input, throttle near 50% holds vertical speed at zero, higher/lower commands climb/descent, and input ≤10% cuts thrust. Low-throttle arming/recovery remains mandatory. Keyboard uses the existing climb/descend keys. Ordinary remote Practice is unchanged Acro; assessment always bypasses assistance even if the preference is saved.
+
+New control/visibility preferences are stored in the existing settings file. Session/CSV records include control_mode to distinguish Beginner Stabilized, Keyboard Assist and Acro. All assistance is an approximate training aid and has not been calibrated to a real aircraft.
