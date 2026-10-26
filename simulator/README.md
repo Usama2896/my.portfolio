@@ -1,8 +1,16 @@
-# AL JEHAD FPV OBSTACLE COURSE — v0.8
+# AL JEHAD FPV OBSTACLE COURSE — v0.8.1
 
 [Download Windows ZIP](https://github.com/Usama2896/my.portfolio/raw/refs/heads/fpv-simulator-prototype/simulator/FPVTrainer-Windows-Prototype.zip)
 
-Close the old app, extract the ZIP into a new folder, then open **AL-JEHAD-FPV/AlJehadFPV.exe**. Check **V0.8**. No Godot, VS Code, installer or Internet is required to run it. Existing calibration, saved courses and records are retained.
+Close the old app, extract the ZIP into a new folder, then open **AL-JEHAD-FPV/AlJehadFPV.exe**. Check **V0.8.1**. No Godot, VS Code, installer or Internet is required to run it. Existing calibration, saved courses and records are retained.
+
+## Calibration memory — v0.8.1
+
+The same radio automatically restores its saved axis mapping, travel limits, centres and inversions. It reuses the last profile even when its USB device index or instance GUID changes, provided the radio name identifies one connected device. Exact device profiles take priority. Older matching profiles are imported without deleting calibration. With several identical radios, select the intended device and verify its live values; USB cannot reliably distinguish identical names without stable identifiers.
+
+Open Controls only when you want to change calibration. Map an axis and confirm as before; cancelling unfinished mapping keeps the saved settings. Calibration belongs to the Windows account on that PC, not to the ZIP or USB stick. A different PC/account needs initial calibration. Low-throttle arming is still required each flight; this is not recalibration.
+
+Nine new checks cover a fresh app instance, endpoints, centres, inversions, reconnect, repeated GUID/index changes and cancellation. Remote launch and customization regressions also pass.
 
 ## What changed
 

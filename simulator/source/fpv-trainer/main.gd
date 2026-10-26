@@ -12,6 +12,7 @@ const SAVE_PATH = "user://course.json"
 const PROFILE_PATH = "user://settings.cfg"
 const RESULTS_PATH = "user://sessions.jsonl"
 var controller = INPUT_ADAPTER.new()
+var restored_radio_profile := ""
 var preferred_radio_guid := ""
 var preferred_radio_name := ""
 var drone_category := 1
@@ -346,7 +347,7 @@ func build_interface() -> void:
 	notice.offset_right = -20
 	notice.offset_top = -35
 	overlay.add_child(notice)
-	version_label = label_("OFFLINE  /  V0.8   •   APPROXIMATE COURSE",12,"e0ead7")
+	version_label = label_("OFFLINE  /  V0.8.1   •   APPROXIMATE COURSE",12,"e0ead7")
 	version_label.position = Vector2(450,96)
 	overlay.add_child(version_label)
 	hud = PanelContainer.new()
@@ -707,8 +708,11 @@ func finish_calibration() -> void:
 		inversions[3] = low_reading>(calibration_min+calibration_max)/2
 	calibrating = -1
 	calibration_snapshot.clear()
-	save_settings()
-	status = "Axis calibration saved. Check live values and inversion before flight."
+	preferred_radio_guid = controller.device_guid(joystick)
+	preferred_radio_name = controller.device_name(joystick)
+	if not save_settings(): return
+	restored_radio_profile = device_section()
+	status = "Calibration saved permanently. This radio will reuse it next time; use Map only when you want to recalibrate."
 
 func device_section() -> String:
 	return "radio_"+controller.device_guid(joystick)+"_"+controller.device_name(joystick) if joystick>=0 else "default_radio"
@@ -746,16 +750,36 @@ func load_settings() -> void:
 	gust_strength = clampf(float(cfg.get_value("flight","gust_strength",0)),0,1)
 	scene_brightness = clampf(float(cfg.get_value("flight","scene_brightness",1)),0.4,1.5)
 
+func saved_radio_section(cfg: ConfigFile) -> String:
+	if joystick<0: return "default_radio"
+	var exact := device_section()
+	if cfg.has_section_key(exact,"axis0"): return exact
+	var canonical := "last_radio_"+controller.device_name(joystick).sha256_text()
+	var connected_names := 0
+	for id in controller.devices():
+		if controller.device_name(id)==controller.device_name(joystick): connected_names += 1
+	if connected_names==1 and cfg.has_section_key(canonical,"axis0"): return canonical
+	# USB instance GUIDs may change across ports/drivers. Match the same radio
+	# name only when its saved profile is unambiguous; never borrow another type.
+	var matches: Array[String] = []
+	var suffix := "_"+controller.device_name(joystick)
+	for section in cfg.get_sections():
+		if section.begins_with("radio_") and section.ends_with(suffix) and cfg.has_section_key(section,"axis0"): matches.append(section)
+	return matches[0] if matches.size()==1 else exact
+
 func load_radio() -> void:
 	var cfg := ConfigFile.new()
 	cfg.load(PROFILE_PATH)
+	var section := saved_radio_section(cfg)
+	restored_radio_profile = section if cfg.has_section_key(section,"axis0") else ""
 	for i in range(4):
-		axes[i] = clampi(int(cfg.get_value(device_section(),"axis"+str(i),i)),0,9)
-		inversions[i] = bool(cfg.get_value(device_section(),"invert"+str(i),i==3))
-		endpoints[i] = cfg.get_value(device_section(),"range"+str(i),Vector2(-1,1))
-		centers[i] = float(cfg.get_value(device_section(),"center"+str(i),0.0))
+		axes[i] = clampi(int(cfg.get_value(section,"axis"+str(i),i)),0,9)
+		inversions[i] = bool(cfg.get_value(section,"invert"+str(i),i==3))
+		endpoints[i] = cfg.get_value(section,"range"+str(i),Vector2(-1,1))
+		centers[i] = float(cfg.get_value(section,"center"+str(i),0.0))
+	if not restored_radio_profile.is_empty(): status = "Saved radio calibration restored automatically. No recalibration needed."
 
-func save_settings() -> void:
+func save_settings() -> bool:
 	var cfg := ConfigFile.new()
 	cfg.load(PROFILE_PATH)
 	for key in ["fov","rates","mass","wind","assisted","use_radio","deadzone","trainee","motor_sound","shadows","drone_category","drone_span","preferred_radio_guid","preferred_radio_name","practice_god_mode","high_visibility","show_all_labels","practice_stabilized","practice_basic","yaw_rate","basic_speed","weather","wind_direction","gust_strength","scene_brightness","ground_route","battery_enabled","battery_minutes","attitude_enabled","vibration_enabled","goggles_enabled"]: cfg.set_value("flight",key,get(key))
@@ -763,12 +787,16 @@ func save_settings() -> void:
 		var stored_axes: Array = calibration_snapshot.axes if calibrating>=0 and not calibration_snapshot.is_empty() else axes
 		var stored_ranges: Array = calibration_snapshot.endpoints if calibrating>=0 and not calibration_snapshot.is_empty() else endpoints
 		var stored_centers: Array = calibration_snapshot.centers if calibrating>=0 and not calibration_snapshot.is_empty() else centers
-		for i in range(4):
-			cfg.set_value(device_section(),"axis"+str(i),stored_axes[i])
-			cfg.set_value(device_section(),"invert"+str(i),inversions[i])
-			cfg.set_value(device_section(),"range"+str(i),stored_ranges[i])
-			cfg.set_value(device_section(),"center"+str(i),stored_centers[i])
-	if cfg.save(PROFILE_PATH)!=OK: status = "Settings could not be saved."
+		for section in [device_section(),"last_radio_"+controller.device_name(joystick).sha256_text()]:
+			for i in range(4):
+				cfg.set_value(section,"axis"+str(i),stored_axes[i])
+				cfg.set_value(section,"invert"+str(i),inversions[i])
+				cfg.set_value(section,"range"+str(i),stored_ranges[i])
+				cfg.set_value(section,"center"+str(i),stored_centers[i])
+	if cfg.save(PROFILE_PATH)!=OK:
+		status = "Settings could not be saved. Check that this Windows account can write to its app-data folder."
+		return false
+	return true
 
 func radio_axis(index: int) -> float:
 	if joystick<0: return 0.0
@@ -1334,6 +1362,11 @@ func poll_radio() -> void:
 		if (not preferred_radio_guid.is_empty() or not preferred_radio_name.is_empty()) and controller.device_guid(id)==preferred_radio_guid and controller.device_name(id)==preferred_radio_name:
 			chosen = id
 			break
+	if chosen<0 and not preferred_radio_name.is_empty():
+		var same_name: Array[int] = []
+		for id in devices:
+			if controller.device_name(id)==preferred_radio_name: same_name.append(id)
+		if same_name.size()==1: chosen = same_name[0]
 	if chosen<0 and preferred_radio_guid.is_empty() and preferred_radio_name.is_empty() and not devices.is_empty(): chosen = devices[0]
 	joystick = chosen
 	if joystick==previous_joystick: return
@@ -1366,7 +1399,8 @@ func device_picker() -> void:
 			poll_radio()
 			save_settings())
 	content.add_child(picker)
-	paragraph("If more than one controller is connected, select the radio you calibrated. Fly with Remote selects USB input automatically.")
+	paragraph("Calibration is saved on this PC and restored automatically for the same radio. Use Map only to change it. If several radios are connected, select yours here.")
+	paragraph("Saved calibration loaded" if not restored_radio_profile.is_empty() else "No saved profile for this radio yet — map the four axes once.","79e5c2")
 
 func select_drone_size(index: int) -> void:
 	drone_category = clampi(index,0,SIZES.LABELS.size()-1)
@@ -1482,7 +1516,7 @@ func show_splash() -> void:
 	splash_progress.add_theme_stylebox_override("background",style("1c3e33",2,0))
 	splash_progress.add_theme_stylebox_override("fill",style("79e5c2",2,0))
 	column.add_child(splash_progress)
-	var footer := label_("OFFLINE FLIGHT SIMULATOR   /   VERSION 0.8",12,"79988c")
+	var footer := label_("OFFLINE FLIGHT SIMULATOR   /   VERSION 0.8.1",12,"79988c")
 	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(footer)
 

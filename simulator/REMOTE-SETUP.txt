@@ -193,3 +193,10 @@ battery duration, ground route, rumble and goggles fullscreen settings.
 Battery defaults to six active-flight minutes. R restarts with a fresh battery.
 Read GOGGLES-SETUP.txt before connecting Skyzone video hardware.
 RadioMaster USB input does not guarantee rumble or carry video to goggles.
+
+VERSION 0.8.1 — SAVED CALIBRATION
+Your last confirmed calibration loads automatically for the same radio on this
+Windows account. You do not need to map the sticks before every flight.
+Use Map and Confirm only when you want to change a mapping.
+Lowering throttle to arm is still required; it is not recalibration.
+A different PC or Windows account needs its own initial calibration.
