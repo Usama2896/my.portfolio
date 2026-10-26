@@ -79,6 +79,17 @@ var gate_labels: Array = []
 var rates := 150.0
 var mass := 0.65
 var wind := 0.0
+var weather := 0
+var wind_direction := 14.0
+var gust_strength := 0.0
+var scene_brightness := 1.0
+var ground_route := true
+var battery_enabled := true
+var battery_minutes := 6.0
+var attitude_enabled := true
+var vibration_enabled := false
+var goggles_enabled := false
+var experience: Node3D
 var motor_sound := true
 var shadows := true
 var motor: AudioStreamPlayer
@@ -128,6 +139,9 @@ func _ready() -> void:
 	guidance = GUIDANCE.new()
 	guidance.host = self
 	add_child(guidance)
+	experience = preload("res://experience.gd").new()
+	experience.host = self
+	add_child(experience)
 	overview = Camera3D.new()
 	add_child(overview)
 	overview.position = Vector3(15,16,20)
@@ -135,9 +149,14 @@ func _ready() -> void:
 	overview.fov = 58
 	overview.current = true
 	build_interface()
+	var attitude = preload("res://attitude.gd").new()
+	attitude.host = self
+	attitude.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(attitude)
 	build_impact_interface()
 	reset_run()
 	show_module("Fly")
+	if goggles_enabled and DisplayServer.get_name()!="headless": DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 	if DisplayServer.get_name()!="headless": show_splash()
 	if "--capture" in OS.get_cmdline_user_args():
 		DisplayServer.window_set_size(Vector2i(1440,900))
@@ -195,6 +214,7 @@ func rebuild_course() -> void:
 	for i in range(course.gates.size()): gates.append(O.build(gate_root,course.gates[i],i))
 	for gate in gates: gate_labels.append(gate.find_children("*","Label3D",true,false))
 	apply_visibility()
+	if is_instance_valid(experience): experience.rebuild_route()
 	if module=="Course Editor": highlight_pole()
 	if is_instance_valid(editor_map): editor_map.queue_redraw()
 	if is_instance_valid(minimap): minimap.queue_redraw()
@@ -326,7 +346,7 @@ func build_interface() -> void:
 	notice.offset_right = -20
 	notice.offset_top = -35
 	overlay.add_child(notice)
-	version_label = label_("OFFLINE  /  V0.7.1   •   APPROXIMATE COURSE",12,"e0ead7")
+	version_label = label_("OFFLINE  /  V0.8   •   APPROXIMATE COURSE",12,"e0ead7")
 	version_label.position = Vector2(450,96)
 	overlay.add_child(version_label)
 	hud = PanelContainer.new()
@@ -385,12 +405,12 @@ func fly_menu() -> void:
 	content.add_child(pilot)
 	content.add_child(label_("Flight mode",13,"a9beb6"))
 	var mode := OptionButton.new()
-	mode.add_item("Practice — learn and retry")
-	mode.add_item("Acro Assessment — timed and scored")
-	mode.add_item("Beginner Stabilized Practice")
-	mode.add_item("Basic Guided Practice — easiest")
-	mode.select(1 if launch_assessment else 3 if practice_basic else 2 if practice_stabilized else 0)
-	mode.item_selected.connect(select_flight_mode)
+	mode.add_item("EASY — Basic Guided",3)
+	mode.add_item("MEDIUM — Beginner Stabilized",2)
+	mode.add_item("HARD — Acro Practice",0)
+	mode.add_item("ASSESSMENT — Acro, scored",1)
+	mode.select(3 if launch_assessment else 0 if practice_basic else 1 if practice_stabilized else 2)
+	mode.item_selected.connect(func(i): select_flight_mode(mode.get_item_id(i)))
 	content.add_child(mode)
 	var collisions := OptionButton.new()
 	collisions.add_item("Crash Mode — impacts and checkpoint restart")
@@ -405,7 +425,7 @@ func fly_menu() -> void:
 	launch_message = label_("",14,"ffc98e")
 	launch_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	content.add_child(launch_message)
-	if practice_basic: paragraph("BASIC: follow the cyan guide drone and dotted route. Centre your + on the marked opening. Release movement sticks/keys to stop. God Mode is selected initially; you can choose Crash Mode.")
+	if practice_basic: paragraph("BASIC: follow the cyan guide drone and dotted route. Centre your diamond on the marked opening. Release movement sticks/keys to stop. God Mode is selected initially; you can choose Crash Mode.")
 	paragraph("The two buttons select the input automatically. No hidden USB switch is needed.")
 	paragraph("KEYBOARD PRACTICE\nAuto-level and height assistance. W/S tilt; A/D bank; Q/E or ←/→ turn. ↑/↓ climb and descend.")
 	paragraph("BEGINNER STABILIZED\nOptional auto-level, softer steering and braking with centred sticks. For remote height assistance, keep throttle near halfway to hold height; fully down still cuts motors.")
@@ -623,10 +643,10 @@ func controls_menu() -> void:
 	field("Basic speed m/s",basic_speed,0.5,4,0.1,func(v): basic_speed = v; save_settings())
 	paragraph("Yaw speed adjusts turning independently. Basic uses 80% of this speed; assessment retains its Acro rate.")
 	field("Drone mass kg",mass,0.25,2,0.05,func(v): mass = v; drone.mass = v; save_settings())
-	field("Practice wind m/s",wind,0,8,0.5,func(v): wind = v; save_settings())
+	experience_settings()
 	field("Stick dead zone",deadzone,0,0.25,0.01,func(v): deadzone = v; save_settings())
 	var audio_toggle := CheckButton.new()
-	audio_toggle.text = "Motor sound"
+	audio_toggle.text = "Sound effects — motors, gates, impacts and battery"
 	audio_toggle.button_pressed = motor_sound
 	audio_toggle.toggled.connect(func(v): motor_sound = v; save_settings())
 	content.add_child(audio_toggle)
@@ -718,6 +738,14 @@ func load_settings() -> void:
 	preferred_radio_guid = str(cfg.get_value("flight","preferred_radio_guid",""))
 	preferred_radio_name = str(cfg.get_value("flight","preferred_radio_name",""))
 
+	weather = clampi(int(cfg.get_value("flight","weather",0)),0,4)
+	for key in ["ground_route","battery_enabled","attitude_enabled"]: set(key,bool(cfg.get_value("flight",key,true)))
+	for key in ["vibration_enabled","goggles_enabled"]: set(key,bool(cfg.get_value("flight",key,false)))
+	battery_minutes = clampf(float(cfg.get_value("flight","battery_minutes",6)),0.5,30)
+	wind_direction = clampf(float(cfg.get_value("flight","wind_direction",14)),0,360)
+	gust_strength = clampf(float(cfg.get_value("flight","gust_strength",0)),0,1)
+	scene_brightness = clampf(float(cfg.get_value("flight","scene_brightness",1)),0.4,1.5)
+
 func load_radio() -> void:
 	var cfg := ConfigFile.new()
 	cfg.load(PROFILE_PATH)
@@ -730,7 +758,7 @@ func load_radio() -> void:
 func save_settings() -> void:
 	var cfg := ConfigFile.new()
 	cfg.load(PROFILE_PATH)
-	for key in ["fov","rates","mass","wind","assisted","use_radio","deadzone","trainee","motor_sound","shadows","drone_category","drone_span","preferred_radio_guid","preferred_radio_name","practice_god_mode","high_visibility","show_all_labels","practice_stabilized","practice_basic","yaw_rate","basic_speed"]: cfg.set_value("flight",key,get(key))
+	for key in ["fov","rates","mass","wind","assisted","use_radio","deadzone","trainee","motor_sound","shadows","drone_category","drone_span","preferred_radio_guid","preferred_radio_name","practice_god_mode","high_visibility","show_all_labels","practice_stabilized","practice_basic","yaw_rate","basic_speed","weather","wind_direction","gust_strength","scene_brightness","ground_route","battery_enabled","battery_minutes","attitude_enabled","vibration_enabled","goggles_enabled"]: cfg.set_value("flight",key,get(key))
 	if joystick>=0:
 		var stored_axes: Array = calibration_snapshot.axes if calibrating>=0 and not calibration_snapshot.is_empty() else axes
 		var stored_ranges: Array = calibration_snapshot.endpoints if calibrating>=0 and not calibration_snapshot.is_empty() else endpoints
@@ -822,6 +850,7 @@ func reset_run() -> void:
 	section_index = 0
 	lap = 1
 	elapsed = 0
+	if is_instance_valid(experience): experience.reset_battery()
 	crashes = 0
 	contacts = 0
 	throttle = 0
@@ -871,6 +900,7 @@ func start_flight(scored: bool) -> bool:
 	minimap.visible = true
 	if is_instance_valid(launch_dialog): launch_dialog.hide()
 	status = "Lower throttle fully to arm. The remote flight view is open." if use_radio else "BASIC GUIDED — follow the cyan route. Release movement controls to stop." if practice_basic and not scored else "Cross the first gate to start timing. KEYBOARD PRACTICE" if not scored else "ACRO ASSESSMENT"
+	experience.tone(660)
 	last_launch_action = "Flight view opened — waiting for low throttle" if use_radio else "Keyboard flight started"
 	return true
 
@@ -887,6 +917,9 @@ func leave_flight() -> void:
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if splash_remaining>0 or not event is InputEventKey or not event.pressed or event.echo: return
+	if event.keycode == KEY_V:
+		attitude_enabled = not attitude_enabled
+		save_settings()
 	if event.keycode == KEY_F11:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if DisplayServer.window_get_mode()==DisplayServer.WINDOW_MODE_FULLSCREEN else DisplayServer.WINDOW_MODE_FULLSCREEN)
 	if event.keycode == KEY_ESCAPE:
@@ -912,6 +945,7 @@ func _physics_process(delta: float) -> void:
 	poll_radio()
 	update_feedback(delta)
 	update_remote_arming(delta)
+	if is_instance_valid(experience): experience.tick(delta)
 	if started and in_flight and not finished and (active or remote_waiting_low): elapsed += delta
 	update_crash_state(delta)
 	if calibrating>=0 and joystick>=0:
@@ -931,9 +965,9 @@ func _physics_process(delta: float) -> void:
 	for i in range(axis_labels.size()):
 		axis_labels[i].text = "Axis %d   %+.2f    %s" % [axes[i],radio_axis(i),controller.device_name(joystick) if joystick>=0 else "No USB controller"]
 	if is_instance_valid(motor):
-		motor.volume_db = lerpf(motor.volume_db,-23.0+throttle*8 if active and crash_phase.is_empty() and motor_sound else -80.0,0.12)
+		motor.volume_db = lerpf(motor.volume_db,-23.0+throttle*8 if active and crash_phase.is_empty() and motor_sound and not experience.depleted else -80.0,0.12)
 		motor.pitch_scale = 0.7+throttle*1.8+drone.linear_velocity.length()*0.008
-	if active and crash_phase.is_empty():
+	if active and crash_phase.is_empty() and not experience.depleted:
 		contact_cooldown = maxf(0,contact_cooldown-delta)
 		var roll := key_axis(KEY_D,KEY_A)
 		var pitch := key_axis(KEY_S,KEY_W)
@@ -975,7 +1009,7 @@ func _physics_process(delta: float) -> void:
 			if not use_radio: throttle = clampf(throttle+lift*delta*0.4,0,1)
 			drone.angular_velocity = drone.basis*Vector3(pitch*deg_to_rad(rates),yaw*deg_to_rad(current_yaw_rate()),-roll*deg_to_rad(rates))
 		drone.apply_central_force(drone.basis.y*throttle*mass*30)
-		if not assessment and not basic: drone.apply_central_force(Vector3(wind,0,wind*0.25)*mass*0.3)
+		if not assessment and not basic: drone.apply_central_force(experience.wind_force())
 		impact_speed = drone.linear_velocity.length()
 		check_gate(previous_position,drone.position)
 		previous_position = drone.position
@@ -994,6 +1028,7 @@ func _physics_process(delta: float) -> void:
 		target_label.text = "%02d / %02d   %s    ·    LAP %d / %d" % [next_gate+1,course.gates.size(),data.name.to_upper(),lap,course.laps]
 		telemetry.text = "%s  %05.1fs     |     %02d km/h     |     ALT %.1fm     |     HDG %03d°     |     POWER %d%%     |     CRASH %d" % ["TIME" if started else "READY",elapsed,int(drone.linear_velocity.length()*3.6),drone.position.y,int(fposmod(-rad_to_deg(drone.rotation.y),360)),int(throttle*100),crashes]
 		flight_status.text = ("GOD MODE · " if not assessment and practice_god_mode else "CRASH MODE · ")+("ACRO ASSESSMENT" if assessment else "BASIC GUIDED" if practice_basic else "BEGINNER STABILIZED" if practice_stabilized else "ASSISTED PRACTICE" if assisted and not use_radio else "ACRO PRACTICE")+("    ·    Q/E: turn    /    A/D: sideways    /    Release: stop    /    Enter: pause    /    Esc: menu" if practice_basic and not assessment else "    ·    Q/E or ←/→: turn    /    A/D: bank    /    Enter: pause    /    Esc: menu")+("    PAUSED" if not active else "")
+		telemetry.text += "   |   BAT %02d:%02d" % [int(experience.remaining())/60,int(experience.remaining())%60] if battery_enabled else "   |   BAT OFF"
 		minimap.queue_redraw()
 		guide.visible = not finished and not (practice_basic and not assessment)
 		var center: Vector3 = O.sections(data)[section_index].center
@@ -1018,6 +1053,7 @@ func check_gate(from: Vector3, to: Vector3) -> void:
 		if not started: started = true; elapsed = 0
 		section_index += 1
 		if section_index == sections.size():
+			experience.tone(880)
 			if is_instance_valid(guidance): guidance.gate_passed()
 			section_index = 0
 			next_gate += 1
@@ -1038,6 +1074,7 @@ func on_impact(strength: float, normal: Vector3) -> void:
 	impact_flash = 0.16
 	shake_strength = clampf(strength*0.012,0.02,0.10)
 	play_impact_sound(strength)
+	experience.vibrate(strength)
 	if not assessment and practice_god_mode:
 		status = "GOD MODE — contact, no crash or reset."
 		return
@@ -1065,6 +1102,7 @@ func finish_run(reason: String) -> void:
 	remote_waiting_low = false
 	crash_phase = ""
 	finished = true
+	experience.tone(520,0.3)
 	drone.freeze = true
 	var score := 100-20*crashes-int(maxf(0,elapsed-float(course.qualifying_seconds))/5)
 	var bonus: float = course.get("bonus_seconds_per_point",0) if course.get("bonus_seconds_per_point") != null else 0
@@ -1444,7 +1482,7 @@ func show_splash() -> void:
 	splash_progress.add_theme_stylebox_override("background",style("1c3e33",2,0))
 	splash_progress.add_theme_stylebox_override("fill",style("79e5c2",2,0))
 	column.add_child(splash_progress)
-	var footer := label_("OFFLINE FLIGHT SIMULATOR   /   VERSION 0.7.1",12,"79988c")
+	var footer := label_("OFFLINE FLIGHT SIMULATOR   /   VERSION 0.8",12,"79988c")
 	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(footer)
 
@@ -1604,7 +1642,7 @@ func launch_from_popup() -> void:
 	launch_remote()
 
 func remote_report() -> String:
-	var rows := PackedStringArray([APP_TITLE+" v0.7.1 REMOTE REPORT","Device: "+(controller.device_name(joystick) if joystick>=0 else "NOT CONNECTED"),"Setup issue: "+remote_configuration_issue(),"State: in_flight=%s active=%s waiting_low=%s" % [in_flight,active,remote_waiting_low],"Last action: "+last_launch_action])
+	var rows := PackedStringArray([APP_TITLE+" v0.8 REMOTE REPORT","Device: "+(controller.device_name(joystick) if joystick>=0 else "NOT CONNECTED"),"Setup issue: "+remote_configuration_issue(),"State: in_flight=%s active=%s waiting_low=%s" % [in_flight,active,remote_waiting_low],"Last action: "+last_launch_action])
 	for i in range(4):
 		rows.append("%s axis=%d raw=%+.3f scaled=%+.3f inverted=%s endpoints=%s centre=%.3f" % [["Roll","Pitch","Yaw","Throttle"][i],axes[i],controller.axis(joystick,axes[i]) if joystick>=0 else 0,radio_axis(i),inversions[i],str(endpoints[i]),centers[i]])
 	return "\n".join(rows)
@@ -1635,6 +1673,7 @@ func apply_visibility() -> void:
 		mat.emission_energy_multiplier = 0.5
 	for child in get_children():
 		if child is WorldEnvironment: child.environment.ambient_light_energy = 0.38 if high_visibility else 0.28
+	if is_instance_valid(experience): experience.apply_weather()
 
 func update_gate_labels() -> void:
 	for i in range(gate_labels.size()):
@@ -1649,6 +1688,44 @@ func select_flight_mode(index: int) -> void:
 	launch_assessment = index==1
 	practice_stabilized = index==2
 	practice_basic = index==3
+	if index==0: assisted = false
 	if practice_basic: practice_god_mode = true
 	save_settings()
 	show_module.call_deferred("Fly")
+
+func experience_settings() -> void:
+	content.add_child(label_("ENVIRONMENT & FLIGHT OPTIONS",20))
+	var presets := OptionButton.new()
+	for title in ["Normal — clear","Hot — golden haze","Cold — cool overcast","Windy — breezy","Storm — dark, strong gusts"]: presets.add_item(title)
+	presets.select(weather)
+	presets.item_selected.connect(func(i):
+		weather = i
+		wind = [0.0,1.0,1.5,4.0,7.0][i]
+		gust_strength = [0.0,0.1,0.15,0.5,1.0][i]
+		experience.apply_weather()
+		save_settings()
+		show_module(module))
+	content.add_child(presets)
+	field("Wind speed m/s",wind,0,8,0.5,func(v): wind = v; save_settings())
+	field("Wind direction °",wind_direction,0,360,5,func(v): wind_direction = v; save_settings())
+	field("Gust strength",gust_strength,0,1,0.05,func(v): gust_strength = v; save_settings())
+	field("Scene brightness",scene_brightness,0.4,1.5,0.1,func(v): scene_brightness = v; experience.apply_weather(); save_settings())
+	paragraph("Easy cancels wind for learning. Assessment retains calm competition conditions. Hot/cold are visual presets; storm adds gusts, not a thermal model.")
+	for entry in [["Ground route and direction arrows","ground_route"],["Battery limit (all levels, including God Mode)","battery_enabled"],["Moving attitude reference — V to toggle","attitude_enabled"],["Contact vibration — supported gamepads only","vibration_enabled"],["Goggles display mode — fullscreen video output","goggles_enabled"]]:
+		var toggle := CheckButton.new()
+		toggle.text = entry[0]
+		toggle.button_pressed = get(entry[1])
+		var key: String = entry[1]
+		toggle.toggled.connect(func(v):
+			set(key,v)
+			if key=="ground_route": experience.route.visible = v
+			if key=="goggles_enabled": DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if v else DisplayServer.WINDOW_MODE_WINDOWED)
+			save_settings())
+		content.add_child(toggle)
+	var screens := OptionButton.new()
+	for i in range(DisplayServer.get_screen_count()): screens.add_item("Video display %d" % [i+1])
+	if screens.item_count>0: screens.select(DisplayServer.window_get_current_screen())
+	screens.item_selected.connect(func(i): DisplayServer.window_set_current_screen(i))
+	content.add_child(screens)
+	field("Battery duration minutes",battery_minutes,0.5,30,0.5,func(v): battery_minutes = v; save_settings())
+	paragraph("Cobra goggles need a compatible video connection. USB radio is input only. In Windows use Win+P > Duplicate to send this screen to an external video adapter. No wireless transmission is created by this switch. See GOGGLES-SETUP.txt.")

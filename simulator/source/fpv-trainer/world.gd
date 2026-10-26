@@ -53,14 +53,15 @@ static func build(root: Node3D) -> void:
 		var height := rng.randf_range(4,9)
 		O.box(root,pos+Vector3(0,height*0.3,0),Vector3(0.28,height*0.6,0.28),Color("554c36"),false)
 		var canopy := MeshInstance3D.new()
-		var cone := CylinderMesh.new()
-		cone.top_radius = 0.2
-		cone.bottom_radius = height*0.3
-		cone.height = height*0.8
-		cone.radial_segments = 7
-		canopy.mesh = cone
-		canopy.position = pos+Vector3(0,height*0.75,0)
-		canopy.material_override = O.material(Color("354f3d")*rng.randf_range(0.8,1.25))
+		var crown := SphereMesh.new()
+		crown.radius = height*0.26
+		crown.height = height*0.62
+		crown.radial_segments = 12
+		crown.rings = 6
+		canopy.mesh = crown
+		canopy.scale = Vector3(1.15,1,0.9)
+		canopy.position = pos+Vector3(0,height*0.7,0)
+		canopy.material_override = O.material(Color("526644")*rng.randf_range(0.8,1.2))
 		root.add_child(canopy)
 	# Training shelter and benches.
 	O.box(root,Vector3(7,2.4,5),Vector3(6,0.2,5),Color("263e43"))
@@ -68,13 +69,16 @@ static func build(root: Node3D) -> void:
 		for z in [3.0,7.0]: O.box(root,Vector3(x,1.2,z),Vector3(0.1,2.4,0.1),Color("aab6a4"))
 	for z in [4,6]:
 		O.box(root,Vector3(7,0.55,z),Vector3(3,0.12,0.5),Color("bca477"))
-	for i in range(8):
-		var mound := MeshInstance3D.new()
-		var sphere := SphereMesh.new()
-		sphere.radius = 16
-		sphere.height = 32
-		mound.mesh = sphere
-		mound.scale = Vector3(2,0.5,1.5)
-		mound.position = Vector3(-110+i*32,-1,-110)
-		mound.material_override = O.material(Color("74896e"))
-		root.add_child(mound)
+	# Flat Punjab-inspired farmland beyond the training area, with field bunds,
+	# irrigation channels, brick farm buildings and broadleaf shelter belts.
+	for i in range(12):
+		var x := -100.0+(i%6)*32
+		var z := -80.0 if i<6 else 55.0
+		O.box(root,Vector3(x,-0.025,z),Vector3(29,0.02,28),Color("a79852") if i%3==0 else Color("7d874b"),false)
+		for j in range(10): O.box(root,Vector3(x-13+j*2.7,0,z),Vector3(0.12,0.05,27),Color("8b874e"),false)
+		O.box(root,Vector3(x+15,0.01,z),Vector3(0.65,0.08,28),Color("9b9069"),false)
+	O.box(root,Vector3(-8,-0.015,40),Vector3(180,0.025,2),Color("638f98"),false)
+	for x in [-65.0,65.0]:
+		O.box(root,Vector3(x,2,-42),Vector3(9,4,7),Color("9a7359"),false)
+		O.box(root,Vector3(x,4.1,-42),Vector3(9.6,0.2,7.6),Color("c0ad8a"),false)
+		O.box(root,Vector3(x,1.2,-38.45),Vector3(1.4,2.4,0.04),Color("4b5143"),false)

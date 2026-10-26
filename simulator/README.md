@@ -1,54 +1,44 @@
-# AL JEHAD FPV OBSTACLE COURSE — v0.7.1
+# AL JEHAD FPV OBSTACLE COURSE — v0.8
 
-**[Download Windows ZIP — about 36 MB](https://github.com/Usama2896/my.portfolio/raw/refs/heads/fpv-simulator-prototype/simulator/FPVTrainer-Windows-Prototype.zip)**
+[Download Windows ZIP](https://github.com/Usama2896/my.portfolio/raw/refs/heads/fpv-simulator-prototype/simulator/FPVTrainer-Windows-Prototype.zip)
 
-Close the old app, extract into a new folder, and open **AL-JEHAD-FPV/AlJehadFPV.exe**. Check **V0.7.1**. Saved calibration, courses and records remain available. No Internet or engine installation is needed to run the export.
+Close the old app, extract the ZIP into a new folder, then open **AL-JEHAD-FPV/AlJehadFPV.exe**. Check **V0.8**. No Godot, VS Code, installer or Internet is required to run it. Existing calibration, saved courses and records are retained.
 
-The fixed white centre diamond and dashed horizontal marks now follow your supplied FPV-screen reference. Black outlines keep them visible against grass and sky. The coloured opening target remains separate and moves with the next gate. These are visual aiming references, not an artificial horizon or automatic steering. Remote flight now shows stick/throttle instructions instead of keyboard instructions.
+## What changed
 
-## Faster, independent yaw
+- Punjab-inspired flat farmland, crop plots, irrigation channel, broadleaf trees, farm buildings and warmer daylight. Lightweight procedural scenery, not photorealistic assets.
+- A continuous ground track with edge lines and direction arrows through the ordered stations. It rebuilds with course edits and can be disabled. The track shows horizontal route; use the airborne guide for climb/vertical tunnel sections.
+- **Normal, Hot, Cold, Windy and Storm** weather presets. Custom wind 0–8 m/s, direction, gust strength and scene brightness. Storm has darker lighting and light rain. Hot/cold are visual presets, not battery-temperature or thermal simulations. Easy cancels wind for learning; assessment keeps calm competition conditions.
+- A **six-minute battery** by default, adjustable from 0.5–30 minutes or disabled. Counts active motor-enabled flying from launch, even before the first gate. Pause and remote arming do not drain it. Warning beeps in the last 30 seconds; at zero, motors and flight assistance cut, the drone falls, and the flight ends on landing or after eight seconds. God Mode does not bypass battery. R starts a fresh flight and battery; checkpoint recovery does not recharge it. This is a time-limit model, not a voltage/current simulation.
+- Difficulty selector ordered **Easy — Basic Guided**, **Medium — Beginner Stabilized**, **Hard — Acro Practice**, then **Acro Assessment**. Hard selects Acro for keyboard and radio. Experts can still customize keyboard assistance in controls.
+- Optional **moving attitude reference in every level**. Press **V** to show/hide. It banks and moves with pitch relative to the fixed aiming reference. At level flight it returns to centre. This is separate from the fixed white diamond and the Basic opening target.
+- Motor, impact, launch, gate-clear, finish and low-battery sound effects in all difficulty levels. One Sound effects switch controls them.
+- Optional contact vibration requests for supported USB gamepads. Most RadioMaster USB joystick modes do not expose rumble; software cannot add that hardware capability.
+- Goggles fullscreen output option and external-display selector. Windows Duplicate output is the simplest setup. This is a single FPV image, not stereo VR, device pairing or wireless video transmission.
 
-Practice yaw now has its own **Yaw speed °/s** setting in Drone & Controls, default **180°/s**, adjustable from 45 to 540. This fixes the previous stabilized-mode turning limit of roughly 69°/s. Pitch/roll sensitivity stays separate. Basic uses 80% of the configured yaw speed; Acro Assessment retains its original Acro rate.
+![Ground route and battery](screenshots/pro-ground-route.png)
+![Moving attitude reference](screenshots/pro-attitude.png)
+![Storm preset](screenshots/pro-storm.png)
 
-The setting changes real turning response: a 1.5-second stabilized full-stick test measured approximately 311° at the 240 setting versus 118° at 90, including damping and initial smoothing. Physical radio tuning still needs the user's feedback.
+## First flight
 
-## New Basic Guided Practice — easiest
+1. Open **Fly** and choose **Easy — Basic Guided**. Leave God Mode on for initial practice.
+2. Click **Fly with Keyboard**. W/S forward/back; A/D sideways; Q/E or Left/Right turns; Up/Down changes height. Release movement keys to stop.
+3. Follow the ground arrows and cyan airborne guide. Align the centre diamond with the coloured opening target. The guide is visual, not autopilot.
+4. **V** toggles the moving attitude line. Enter pauses, R restarts with a fresh battery, Esc opens menu, F11 toggles fullscreen.
+5. For a radio, use **Fly with Remote**, lower throttle fully to arm, then raise above halfway to climb. Near halfway holds height in Easy/Medium; fully low cuts motors. Use your calibrated mapping.
+6. Open **Drone & Controls**, scroll to **Environment & Flight Options**, and adjust weather, wind, battery, ground route, attitude, rumble and goggles options.
 
-Choose **Basic Guided Practice — easiest** in Flight mode, then Fly with Keyboard or Fly with Remote. It is the third practice level alongside ordinary Practice and Beginner Stabilized; assessment remains separate.
+[Remote guide](REMOTE-SETUP.txt) · [Goggles connection guide](GOGGLES-SETUP.txt)
 
-- Slow forward/sideways movement with a level horizon.
-- Release movement keys or centre pitch/roll sticks to brake and stop.
-- Altitude assistance, gentle steering and calm conditions.
-- God Mode is selected initially; Crash Mode remains available.
-- A centre **diamond and dashed horizontal reference**, marked opening reticle, off-screen direction arrows and green **GATE CLEAR** feedback.
-- A moving cyan guide drone and dotted route through the current obstacle, including the upward tunnel.
-
-The cyan drone is a visual guide, not autopilot. It cannot collide with you or complete gates for you. The guide fades near the camera to avoid blocking the view. Wrong-side approaches point back to the entry, and openings too small for the selected drone show a warning.
-
-![Basic selection](screenshots/basic-selection.png)
-![Centre aim marker and guide route](screenshots/basic-guide-flight.png)
-![Guidance inside the upward tunnel](screenshots/basic-tunnel-guide.png)
-
-## First flight in simple steps
-
-1. Choose **Basic Guided Practice** and leave **God Mode** selected.
-2. **Keyboard:** Fly with Keyboard starts a hover. W/S moves forward/back; A/D moves sideways; Q/E or Left/Right arrows turn. Up/Down climbs/descends. Release movement keys to stop.
-3. **Remote:** Fly with Remote opens disarmed; lower throttle to arm. Raise it above halfway to climb, then near halfway to hold height. Right stick moves forward/back/sideways; left stick horizontal turns (usual Mode 2 mapping). Fully low throttle still cuts motors.
-4. Follow the cyan route. Align the centre diamond with the outlined opening marker. Turn or climb/descend when the guide arrow says so.
-5. Enter pauses, R restarts, Esc opens the menu, F11 toggles full screen.
-
-**[Full beginner/remote guide](REMOTE-SETUP.txt)** is included in the ZIP. Ordinary remote Practice stays Acro and does not use Basic movement assistance; assessment has no guide or Basic assists.
+Cobra model inputs must be checked in its manual. AV-only goggles generally require a powered **active HDMI-to-composite converter** and the correct AV cable. USB may only provide power/firmware. No physical Cobra output or controller vibration has been verified in the cloud.
 
 ## Retained features
 
-Photo-based upward-exit U-tunnel, visibility/FOV controls, working remote launch/arming, Crash Mode/God Mode and checkpoint recovery, individual pole positions, drone sizes, 17 obstacle types, XYZ/rotation/spacing editing, local records and CSV export. RADIO-TEST.html remains available for offline local USB diagnostics.
+Faster adjustable yaw; upward-exit photo-based U-tunnel; real collision feedback and checkpoint recovery; God Mode; 17 obstacle shapes; individual zigzag pole positions; drone sizes; XYZ/rotation/spacing editor; JSON import/export; visibility/FOV controls; local sessions/CSV; USB mapping, calibration and diagnostics. Records remain in the existing DTC Flight Lab user-data directory.
 
-## Verification
+## Validation
 
-451 checks passed: 443 Godot checks (129 general, 101 obstacle/spacing, 6 keyboard flight, 24 yaw, 29 remote launch, 38 customization/size, 24 crash/recovery, 47 upward tunnel, 17 stability/visibility and 28 Basic/yaw/guidance), seven radio-page JavaScript checks and one native rendered popup mouse-click check. Rendered aiming and guide views were inspected. Windows export and packed-resource startup were checked in Linux.
+471 checks passed: 463 Godot checks plus seven offline radio-page checks and one native mouse launch check. These include 20 new environment, battery, route, difficulty and attitude checks plus 443 existing checks. The new tests verify battery cutoff in God Mode, pause, recharge, wind direction, setting persistence, collision-free ground route, mode order and the attitude line's bank/pitch direction. Rendered route, tilt and storm screens were inspected. Windows export is checked separately; a physical Windows/Cobra/TX16 test remains necessary.
 
-New tests cover actual yaw-speed response, keyboard and injected-radio Basic movement, stopping/height hold, correct clockwise radio yaw, ghost route through the upward exit, wrong-side guidance, clearance warnings and assessment isolation. A visual guide never advances pilot progress. This does not replace a physical Windows/radio retest of the new mode.
-
-Basic is a deliberately assisted learning mode, not a calibrated real-aircraft model. Geometry, collision envelopes and dynamics remain approximate. The executable is unsigned; report Windows warnings without disabling protection.
-
-[Full development guide](source/fpv-trainer/README.md)
+[Development guide](source/fpv-trainer/README.md)

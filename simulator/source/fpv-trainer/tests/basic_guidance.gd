@@ -34,7 +34,7 @@ func run() -> void:
 	root.add_child(app)
 	check(not app.practice_basic,"Basic is opt-in")
 	var mode: OptionButton = app.content.get_children().filter(func(c): return c is OptionButton)[0]
-	check(mode.get_item_text(3).contains("Basic Guided"),"new mode is explicitly listed")
+	check(mode.get_item_text(0).contains("Basic Guided") and mode.get_item_id(0)==3,"new mode is explicitly listed")
 	var pitch_roll: float = app.rates
 	var fast: float = await turn(app,240)
 	var slower: float = await turn(app,90)

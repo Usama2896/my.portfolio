@@ -144,3 +144,12 @@ Guidance is split into guidance.gd (visual 3D path/ghost/centre plus) and flight
 Guidance and Basic controls are disabled in assessment even if preferences are saved. The existing ordinary Practice and Beginner modes remain. New preferences persist in the existing settings file; session/CSV records include Basic Guided control_mode and the effective yaw_rate_deg.
 
 The guide is an illustrative centre route, not obstacle avoidance or an autopilot. Arbitrarily overlapping or badly ordered custom courses can still be impossible. Existing crash and physical clearance rules remain authoritative. Basic's force assistance is intentionally an easy learning aid, not real quadcopter dynamics.
+
+## Version 0.8
+
+See ../../README.md for release behaviour and controls. `experience.gd` owns
+weather appearance, noncolliding route geometry, flight battery, cue audio and
+optional native gamepad rumble. `attitude.gd` draws the world-up-derived moving
+reference independently of Basic guidance. Settings remain in the existing
+profile, preserving device calibration and courses. Assessment wind stays calm;
+battery is an explicit configurable option that applies to all modes.

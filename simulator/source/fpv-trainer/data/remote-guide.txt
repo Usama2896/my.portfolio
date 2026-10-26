@@ -184,3 +184,12 @@ GATE CLEAR appears when a full obstacle is actually passed in the right order.
 If it says the opening is too small, select a smaller drone span or widen the
 obstacle in the editor. Guidance does not secretly change collision geometry.
 Assessment always stays Acro and has no Basic guide or movement assistance.
+
+VERSION 0.8 UPDATE
+Choose Easy, Medium, Hard or Assessment in the reordered flight selector.
+V toggles the moving attitude reference in every level.
+Drone & Controls > Environment & Flight Options contains weather, wind,
+battery duration, ground route, rumble and goggles fullscreen settings.
+Battery defaults to six active-flight minutes. R restarts with a fresh battery.
+Read GOGGLES-SETUP.txt before connecting Skyzone video hardware.
+RadioMaster USB input does not guarantee rumble or carry video to goggles.

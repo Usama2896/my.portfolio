@@ -18,7 +18,7 @@ func run() -> void:
 	root.add_child(app)
 	check(not app.practice_stabilized,"ordinary practice remains the default")
 	var modes: OptionButton = app.content.get_children().filter(func(c): return c is OptionButton)[0]
-	check(modes.get_item_text(2).contains("Beginner Stabilized"),"beginner mode is an explicit optional choice")
+	check(modes.get_item_text(1).contains("Beginner Stabilized") and modes.get_item_id(1)==2,"beginner mode is an explicit optional choice")
 	app.controller = load("res://tests/fake_controller.gd").new()
 	app.poll_radio()
 	app.practice_stabilized = true
