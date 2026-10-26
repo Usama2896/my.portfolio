@@ -1,7 +1,8 @@
 config_version=5
 [application]
 config/name="DTC Flight Lab"
-config/version="0.3.0"
+config/description="AL JEHAD FPV OBSTACLE COURSE"
+config/version="0.4.0"
 config/icon="res://assets/icon.svg"
 run/main_scene="res://main.tscn"
 [display]

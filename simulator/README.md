@@ -1,55 +1,50 @@
-# DTC Flight Lab — offline FPV simulator v0.3
+# AL JEHAD FPV OBSTACLE COURSE — v0.4
 
-## Download for Windows
+**[Download Windows ZIP — about 36 MB](https://github.com/Usama2896/my.portfolio/raw/refs/heads/fpv-simulator-prototype/simulator/FPVTrainer-Windows-Prototype.zip)**
 
-**[Download Windows ZIP (about 36 MB)](https://github.com/Usama2896/my.portfolio/raw/refs/heads/fpv-simulator-prototype/simulator/FPVTrainer-Windows-Prototype.zip)**
+## Open this version
 
-1. Download the ZIP above. No VS Code or controller is required.
-2. In Downloads, right-click the ZIP → **Extract All** → **Extract**.
-3. Open **FPVTrainer**, then run **FPVTrainer.exe**. Keep all files together.
-4. Click **Start keyboard-friendly practice**. The drone automatically holds height.
-5. Hold **↑** to climb; release to hold height. **↓** descends. Tap **W/S** to tilt forward/back, **A/D** roll, **Q/E** or **Left/Right arrows** turn in place.
-6. **Enter** pauses, **R** restarts, **Esc** returns to the menu.
+1. Extract the ZIP into a new folder.
+2. Open **AL-JEHAD-FPV** and run **AlJehadFPV.exe**. Keep the supporting files together.
+3. Watch the two-second **AL JEHAD** opening screen; the menu should say **V0.4**.
+4. Choose Practice or Acro Assessment, then **Fly with Keyboard** or **Fly with Remote**.
 
-If Windows shows a security warning, do not disable protection; report the exact wording. This development build is unsigned and has not been run on Windows yet.
+Pilot name is an optional text field, not a launch option. No VS Code, Godot, Steam, account or Internet connection is required to run the export.
 
-## What's new
+## Remote-start correction
 
-- 17 selectable obstacle types. The supplied 13-station course uses rings, hexagons, five-pole zigzag, precision gate, triple ring, corridor, tunnel, U-tunnel and KZ. Extra options: triangle, square, diamond, arch, ladder, dive ring, hurdle and flag turn.
-- Assisted keyboard practice and separate Acro assessments.
-- Course editor with dimensions, add/remove/duplicate/reorder, draggable map, individual gaps, whole-course spacing, local save and JSON import/export.
-- Drone/control settings, USB axis calibration/inversion/dead zone, and a shadow toggle for slower laptops.
-- Pilot names, local training history, scoring and CSV results export.
-- New menus, field, sky, vegetation, lighting, shadows, flight HUD, minimap and motor sound.
+Previously, enabling USB made both launch buttons follow the same remote checks, even the button labelled keyboard practice. The separate USB-enable switch is now removed. The two new buttons explicitly choose their input source.
 
-## Plain-English USB remote guide
+If a remote cannot start, a setup window shows the reason and live throttle readings. It provides **Open Controls**, **Invert Throttle** and **Start Remote Flight**. Low throttle is still required. Throttle calibration now detects direction when confirmed with the stick fully down. Unfinished calibration can be cancelled without changing confirmed mappings.
 
-**[Read REMOTE-SETUP.txt](REMOTE-SETUP.txt)** — step-by-step USB copying, RadioMaster connection, Windows controller check, stick mapping, calibration, first flight and troubleshooting. The same guide is inside the Windows ZIP and accessible in Drone & Controls.
+**[Beginner remote guide: REMOTE-SETUP.txt](REMOTE-SETUP.txt)** is also inside the ZIP and available in Drone & Controls. Your earlier calibration, courses and records remain in the existing DTC Flight Lab data folder.
 
-Keyboard yaw: **Q / Left arrow = turn left (CCW); E / Right arrow = turn right (CW)**. A/D bank the drone. The FPV camera turns with the drone; there is no separate camera gimbal.
+## Added customization
 
-Spacing: in Course Editor select station 02 or later, set **Gap from previous (m)**, and Save. **Move later stations together** preserves later gaps. **Whole-course spacing ×** expands/contracts all station locations without resizing obstacles.
+- **Individual poles:** select Zig Zag, then Pole 1–5. Change Pole X/Z or drag its orange P1–P5 map point. The chosen pole turns orange and its passage target follows it.
+- **Drone sizes:** 2.5, 5, 7, 10, 13 and 16–17 inches. These have approximate overall spans; enter a measured span for clearance. Size changes the collision envelope and gate passage checks, not the flight model.
+- **Station transforms:** X/Z position, Y height, and yaw/pitch/roll through a full 360°. Shapes stay unchanged while moving or rotating.
+- **Whole-course rotation:** turn the layout around station 1 while preserving gaps and shapes.
+- Existing 17 obstacle types, station spacing, course import/export, local records and CSV export remain available.
 
-If a saved v0.2 course loads, export it first if you want a backup, then use **Restore supplied course** to see the updated default 8 m Zig Zag pole line.
+Click **Save course locally** after course edits. Drone and controller settings save automatically. Export a custom course before restoring the supplied layout.
 
-## Actual screenshots
+## Actual application screenshots
 
-These are rendered from the application, not concept images.
+![Two-second opening screen](screenshots/splash.png)
+![Two explicit launch buttons](screenshots/home.png)
+![Individual pole positions and map editing](screenshots/poles.png)
+![Drone sizes and controls](screenshots/controls.png)
+![Remote-start explanation when no device is connected](screenshots/remote-check.png)
 
-![Home and course overview](screenshots/home.png)
-![First-person flight](screenshots/flight.png)
-![Course editor](screenshots/editor.png)
-![Triple ring](screenshots/triple.png)
-![Tunnel](screenshots/tunnel.png)
+[Flight](screenshots/flight.png) · [Hexagon](screenshots/hexagon.png) · [Triple ring](screenshots/triple.png) · [Tunnel](screenshots/tunnel.png) · [Triangle](screenshots/triangle.png) · [Diamond](screenshots/diamond.png) · [Dive ring](screenshots/dive.png)
 
-Extra types: [triangle](screenshots/triangle.png), [square](screenshots/square.png), [diamond](screenshots/diamond.png), [arch](screenshots/arch.png), [ladder](screenshots/ladder.png), [dive ring](screenshots/dive.png), [hurdle](screenshots/hurdle.png), [flag](screenshots/flag.png).
+## Verification and practical limits
 
-More views: [hexagon](screenshots/hexagon.png), [zigzag](screenshots/zigzag.png), [corridor](screenshots/corridor.png), [U-tunnel](screenshots/u-tunnel.png), [KZ](screenshots/kz.png), [controls](screenshots/controls.png), [results](screenshots/results.png).
+**313 automated checks passed:** 114 general checks, 96 obstacle/spacing checks, 24 yaw checks, 6 keyboard-flight checks, 35 remote-launch/calibration/splash checks, and 38 new customization/size checks. Remote tests inject deterministic USB reports into the same production input path and verify actual throttle-driven lift. Actual button signals, high-throttle blockers, unfinished calibration, inversion, device selection and disconnect behavior are covered. Small-versus-large drone clearance was checked using both gate progression and physical collisions.
 
-## Tested versus pending
+Rendered views were inspected. Windows export and packed-resource startup were checked in Linux. The user confirmed radio detection/calibration on an earlier Windows version; the revised v0.4 remote launch still needs a physical TX16/Pocket retest. Flight dynamics, course dimensions and crash classification remain approximate. This is a development release, not yet a calibrated commercial simulator.
 
-240 automated checks passed in Linux: 114 scene/shape/course/settings/rules/axis checks, 96 new obstacle/spacing checks, 24 full-turn yaw checks and 6 keyboard-flight checks. Q/E and Left/Right each turned the drone through 360° in both practice and assessment without unintended banking. Actual rendered views were inspected. Windows export and packed-resource startup were checked. Physical Windows operation, laptop frame rate and RadioMaster remotes still need testing.
+The Windows executable is unsigned. If Windows shows a warning, report the exact wording rather than disabling protection.
 
-This is a much more capable development release, not yet a finished Liftoff replacement. Layout/dimensions and some obstacle interpretations remain approximate. Physics, wind and crash classification are preliminary; bonus timing defaults to disabled pending the missing rule. See the [full guide and limitations](source/fpv-trainer/README.md).
-
-Source project: [source/fpv-trainer](source/fpv-trainer). Your original portfolio files are unchanged.
+[Full development guide and limitations](source/fpv-trainer/README.md) · [Source project](source/fpv-trainer)

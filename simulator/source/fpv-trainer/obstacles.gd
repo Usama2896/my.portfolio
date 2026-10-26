@@ -46,10 +46,16 @@ static func sections(data: Dictionary) -> Array[Dictionary]:
 	for i in range(count):
 		var x := 0.0
 		var z := -depth*float(i)/maxi(1,count-1)
-		if kind == "zigzag": x = float(data.width)*0.35*(1 if i%2==0 else -1)
+		var pole := Vector3(0,0,z)
+		if kind == "zigzag":
+			var offset := pole_offset(data,i)
+			pole.x = offset.x
+			pole.z += offset.y
+			x = pole.x+float(data.width)*0.35*(1 if i%2==0 else -1)
+			z = pole.z
 		if kind == "flag": x = float(data.width)*0.35
 		if kind == "u_tunnel": x = sin(float(i)*PI/4)*1.2
-		out.append({"center":Vector3(x,0,z),"kind":kind})
+		out.append({"center":Vector3(x,0,z),"pole":pole,"kind":kind})
 	return out
 
 static func polygon(kind: String, width: float, height: float) -> PackedVector2Array:
@@ -107,9 +113,9 @@ static func build(parent: Node3D, data: Dictionary, index: int) -> Node3D:
 	var gate := Node3D.new()
 	parent.add_child(gate)
 	gate.position = Vector3(data.x,data.height,data.z)
-	gate.rotation_degrees.y = data.yaw_degrees
+	gate.rotation_degrees = Vector3(float(data.get("pitch_degrees",0)),float(data.yaw_degrees),float(data.get("roll_degrees",0)))
 	var kind: String = data.get("type","ring")
-	if kind == "dive": gate.rotation_degrees.x = -90
+	if kind == "dive": gate.rotation_degrees.x -= 90
 	var color := Color("268575")
 	if kind in ["kz","tunnel"]: color = Color("bb6339")
 	elif kind in ["precision","zigzag","triple"]: color = Color("bda13c")
@@ -120,10 +126,11 @@ static func build(parent: Node3D, data: Dictionary, index: int) -> Node3D:
 		var c: Vector3 = sec[s].center
 		if kind in ["zigzag","flag"]:
 			var pole_height := float(data.height)+height/2
-			var pole := box(gate,Vector3(0,pole_height/2-float(data.height),c.z),Vector3(0.10,pole_height,0.10),color)
+			var pole_pos: Vector3 = sec[s].pole
+			var pole := box(gate,Vector3(pole_pos.x,pole_height/2-float(data.height),pole_pos.z),Vector3(0.10,pole_height,0.10),color)
 			pole.name = "SlalomPole%02d" % s
-			box(gate,Vector3(0,-float(data.height)+0.04,c.z),Vector3(0.55,0.08,0.55),Color("344943"))
-			if kind == "flag": box(gate,Vector3(0.28,height/2-0.3,c.z),Vector3(0.5,0.5,0.025),color,false)
+			box(gate,Vector3(pole_pos.x,-float(data.height)+0.04,pole_pos.z),Vector3(0.55,0.08,0.55),Color("344943"))
+			if kind == "flag": box(gate,Vector3(pole_pos.x+0.28,height/2-0.3,pole_pos.z),Vector3(0.5,0.5,0.025),color,false)
 			continue
 		if kind == "hurdle":
 			beam(gate,Vector3(-width/2,-height/2,0),Vector3(width/2,-height/2,0),0.10,color)
@@ -221,3 +228,13 @@ static func apply_preset(data: Dictionary, kind: String) -> void:
 		"tunnel", "u_tunnel": data.opening_height = 2.0; data.height = 1.5
 		"dive": data.height = 4.0
 		"hurdle": data.height = 1.8; data.opening_height = 2.4
+
+static func pole_offset(data: Dictionary, index: int) -> Vector2:
+	var offsets: Array = data.get("pole_offsets",[])
+	if index>=offsets.size(): return Vector2.ZERO
+	return Vector2(float(offsets[index].x),float(offsets[index].z))
+
+static func ensure_poles(data: Dictionary) -> void:
+	if not data.has("pole_offsets"):
+		data.pole_offsets = []
+		for i in range(5): data.pole_offsets.append({"x":0.0,"z":0.0})

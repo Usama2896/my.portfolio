@@ -74,7 +74,7 @@ func run() -> void:
 	scene.save_course()
 	check(is_equal_approx(float(scene.load_course().gates[0].width),3.1),"course survives save/reload")
 	scene.show_module("Course Editor")
-	var edited_spin: SpinBox = scene.content.get_children().filter(func(child): return child is HBoxContainer and child.get_child_count()==2 and child.get_child(1) is SpinBox)[0].get_child(1)
+	var edited_spin: SpinBox = scene.content.get_children().filter(func(child): return child is HBoxContainer and child.get_child_count()==2 and child.get_child(1) is SpinBox and child.get_child(0) is Label and child.get_child(0).text=="X — left/right")[0].get_child(1)
 	edited_spin.value = -2.0
 	check(is_equal_approx(float(scene.course.gates[scene.selected].x),-2.0),"editor numeric input updates course geometry")
 	var invalid := original.duplicate(true)

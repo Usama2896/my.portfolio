@@ -1,10 +1,27 @@
 extends Node3D
+const APP_TITLE = "AL JEHAD FPV OBSTACLE COURSE"
+const INPUT_ADAPTER = preload("res://controller_input.gd")
+const SIZES = preload("res://drone_sizes.gd")
 const O = preload("res://obstacles.gd")
 const WORLD = preload("res://world.gd")
 const MAP = preload("res://course_map.gd")
 const SAVE_PATH = "user://course.json"
 const PROFILE_PATH = "user://settings.cfg"
 const RESULTS_PATH = "user://sessions.jsonl"
+var controller = INPUT_ADAPTER.new()
+var preferred_radio_guid := ""
+var preferred_radio_name := ""
+var drone_category := 1
+var drone_span := 0.30
+var drone_collision: CollisionShape3D
+var launch_assessment := false
+var launch_dialog: AcceptDialog
+var remote_readout: Label
+var launch_message: Label
+var selected_pole := 0
+var splash_control: Control
+var splash_progress: ProgressBar
+var splash_remaining := 0.0
 var course: Dictionary
 var gates: Array[Node3D] = []
 var gate_root: Node3D
@@ -49,6 +66,7 @@ var endpoints: Array[Vector2] = [Vector2(-1,1),Vector2(-1,1),Vector2(-1,1),Vecto
 var centers: Array[float] = [0.0,0.0,0.0,0.0]
 var calibrating := -1
 var calibration_step := 0
+var calibration_snapshot: Dictionary = {}
 var baseline: Array[float] = []
 var calibration_min := 1.0
 var calibration_max := -1.0
@@ -69,6 +87,7 @@ var capture_stage := 0
 var capture_ticks := 0
 
 func _ready() -> void:
+	DisplayServer.window_set_title(APP_TITLE)
 	load_settings()
 	Engine.max_fps = 60
 	course = load_course()
@@ -88,6 +107,7 @@ func _ready() -> void:
 	build_interface()
 	reset_run()
 	show_module("Fly")
+	if DisplayServer.get_name()!="headless": show_splash()
 	if "--capture" in OS.get_cmdline_user_args():
 		DisplayServer.window_set_size(Vector2i(1440,900))
 		get_window().size = Vector2i(1440,900)
@@ -113,7 +133,19 @@ func valid_course(value: Variant) -> bool:
 			if not is_finite(float(d[key])): return false
 		if not d.get("type","") in O.TYPES or not d.get("name") is String: return false
 		if d.width<0.6 or d.width>8 or d.opening_height<0.6 or d.opening_height>8 or d.depth<0.5 or d.depth>8: return false
+		for angle in ["pitch_degrees","roll_degrees"]:
+			var v = d.get(angle,0)
+			if not (v is int or v is float) or not is_finite(float(v)) or absf(float(v))>360: return false
+		if d.has("pole_offsets"):
+			if not d.pole_offsets is Array or d.pole_offsets.size()!=5: return false
+			for offset in d.pole_offsets:
+				if not offset is Dictionary: return false
+				for axis in ["x","z"]:
+					var v = offset.get(axis)
+					if not (v is int or v is float) or not is_finite(float(v)) or absf(float(v))>8: return false
 		if absf(d.x)>100 or absf(d.z)>100 or d.height<0.5 or d.height>12: return false
+	var rotation_ = value.get("layout_rotation",0)
+	if not (rotation_ is int or rotation_ is float) or not is_finite(float(rotation_)) or absf(float(rotation_))>360: return false
 	var scale_ = value.get("spacing_scale",1)
 	if not (scale_ is float or scale_ is int) or not is_finite(float(scale_)) or float(scale_)<0.25 or float(scale_)>4: return false
 	var bonus = value.get("bonus_seconds_per_point")
@@ -128,6 +160,7 @@ func rebuild_course() -> void:
 		child.queue_free()
 	gates.clear()
 	for i in range(course.gates.size()): gates.append(O.build(gate_root,course.gates[i],i))
+	if module=="Course Editor": highlight_pole()
 	if is_instance_valid(editor_map): editor_map.queue_redraw()
 	if is_instance_valid(minimap): minimap.queue_redraw()
 
@@ -141,8 +174,9 @@ func create_drone() -> void:
 	drone.continuous_cd = true
 	var shape := CollisionShape3D.new()
 	var sphere := SphereShape3D.new()
-	sphere.radius = 0.18
+	sphere.radius = SIZES.radius(drone_span)
 	shape.shape = sphere
+	drone_collision = shape
 	drone.add_child(shape)
 	add_child(drone)
 	drone.body_entered.connect(on_contact)
@@ -225,7 +259,7 @@ func build_interface() -> void:
 	var top_row := HBoxContainer.new()
 	top_row.add_theme_constant_override("separation",20)
 	top.add_child(top_row)
-	top_row.add_child(label_("DTC  /  FLIGHT LAB",21,"79e5c2"))
+	top_row.add_child(label_("AL JEHAD  /  FPV COURSE",21,"79e5c2"))
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top_row.add_child(spacer)
@@ -253,7 +287,7 @@ func build_interface() -> void:
 	notice.offset_right = -20
 	notice.offset_top = -35
 	overlay.add_child(notice)
-	version_label = label_("OFFLINE  /  V0.3   •   APPROXIMATE COURSE",12,"e0ead7")
+	version_label = label_("OFFLINE  /  V0.4   •   APPROXIMATE COURSE",12,"e0ead7")
 	version_label.position = Vector2(450,96)
 	overlay.add_child(version_label)
 	hud = PanelContainer.new()
@@ -301,21 +335,33 @@ func show_module(name_: String) -> void:
 		"Training Results": results_menu()
 
 func fly_menu() -> void:
-	content.add_child(label_("Your next\nclean lap.",38,"f3f1dd"))
-	paragraph("A dedicated FPV training field. Learn the course, find your line, then challenge the clock.")
-	content.add_child(label_("%02d STATIONS     %d LAPS     100 POINTS" % [course.gates.size(),course.laps],13,"79e5c2"))
-	paragraph("Rings · Hexagons · Zigzag · Precision\nTriple ring · Corridor · Tunnels · KZ")
+	content.add_child(label_("Choose how\nyou fly.",36,"f3f1dd"))
+	paragraph("AL JEHAD FPV OBSTACLE COURSE")
+	content.add_child(label_("%02d STATIONS     %d LAPS" % [course.gates.size(),course.laps],13,"79e5c2"))
+	content.add_child(label_("Pilot name (optional)",13,"a9beb6"))
 	var pilot := LineEdit.new()
-	pilot.placeholder_text = "Pilot name"
+	pilot.placeholder_text = "Pilot name (optional)"
 	pilot.text = trainee
 	pilot.text_changed.connect(func(v): trainee = v.strip_edges().left(60); save_settings())
 	content.add_child(pilot)
-	button_("Start keyboard-friendly practice  →",func(): start_flight(false),null,true)
-	button_("Start Acro assessment",func(): start_flight(true))
-	paragraph("PRACTICE\nAuto-level and altitude assistance for keyboard users. Unlimited retries; no competition score.")
-	paragraph("ASSESSMENT\nAcro only. 3 laps, 2:40 qualifying time, 3:20 cutoff. First crash: −20; second crash: disqualification.")
-	paragraph("W/S tilt  •  A/D bank  •  Q/E or ←/→ turn in place\n↑ / ↓ climb & descend in assisted practice\nEnter pause  •  R restart  •  Esc menu")
-	paragraph("Course dimensions are approximate. Flight dynamics are a tunable simulation, not yet calibrated to your drone.","c0b38f")
+	content.add_child(label_("Flight mode",13,"a9beb6"))
+	var mode := OptionButton.new()
+	mode.add_item("Practice — learn and retry")
+	mode.add_item("Acro Assessment — timed and scored")
+	mode.select(1 if launch_assessment else 0)
+	mode.item_selected.connect(func(i): launch_assessment = i==1)
+	content.add_child(mode)
+	button_("Fly with Keyboard",launch_keyboard,null,true)
+	button_("Fly with Remote",launch_remote)
+	launch_message = label_("",14,"ffc98e")
+	launch_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_child(launch_message)
+	paragraph("The two buttons select the input automatically. No hidden USB switch is needed.")
+	paragraph("KEYBOARD PRACTICE\nAuto-level and height assistance. W/S tilt; A/D bank; Q/E or ←/→ turn. ↑/↓ climb and descend.")
+	paragraph("REMOTE PRACTICE\nYour mapped USB radio, in Acro mode. Lower throttle fully before starting. If blocked, a setup window explains why.")
+	paragraph("Assessment uses Acro for both input types. Practice has no competition score. Enter pauses; R restarts; Esc opens this menu.")
+	paragraph("Selected drone: %s · approximate overall span %.2f m. Change it in Drone & Controls." % [SIZES.LABELS[drone_category],drone_span],"79e5c2")
+	paragraph("Course geometry and flight dynamics remain approximate.","c0b38f")
 
 func field(text: String, value: float, low: float, high: float, step: float, changed: Callable) -> SpinBox:
 	var row := HBoxContainer.new()
@@ -352,9 +398,16 @@ func editor_menu() -> void:
 	type_input.select(O.TYPES.find(data.type))
 	type_input.item_selected.connect(func(i): O.apply_preset(data,O.TYPES[i]); rebuild_course(); show_module(module))
 	content.add_child(type_input)
-	for spec in [["X", "x",-95,95,0.1],["Z", "z",-95,95,0.1],["Centre height", "height",0.5,12,0.1],["Opening width", "width",0.6,8,0.1],["Opening height", "opening_height",0.6,8,0.1],["Depth", "depth",0.5,8,0.1],["Heading °", "yaw_degrees",-180,180,5]]:
+	if data.type=="zigzag":
+		pole_editor(data)
+		add_editor_map()
+	paragraph("STATION POSITION / ROTATION", "79e5c2")
+	for spec in [["X — left/right", "x",-95,95,0.1],["Z — front/back", "z",-95,95,0.1],["Y — height", "height",0.5,12,0.1],["Opening width", "width",0.6,8,0.1],["Opening height", "opening_height",0.6,8,0.1],["Depth", "depth",0.5,8,0.1],["Yaw / turn °", "yaw_degrees",-360,360,5]]:
 		var key: String = spec[1]
 		field(spec[0],data[key],spec[2],spec[3],spec[4],func(v): data[key] = v; rebuild_course())
+	for spec in [["Pitch / tilt °","pitch_degrees"],["Roll / bank °","roll_degrees"]]:
+		var key: String = spec[1]
+		field(spec[0],float(data.get(key,0)),-360,360,5,func(v): data[key] = v; rebuild_course())
 	paragraph("SPACING BETWEEN STATIONS", "79e5c2")
 	if selected>0:
 		field("Gap from previous (m)",station_gap(selected),0.5,80,0.1,func(v):
@@ -367,6 +420,8 @@ func editor_menu() -> void:
 	else: paragraph("Select station 02 or later to change its gap from the previous station.")
 	field("Whole-course spacing ×",float(course.get("spacing_scale",1)),0.25,4,0.05,func(v):
 		if not scale_spacing(v): show_module.call_deferred(module))
+	field("Rotate whole course °",float(course.get("layout_rotation",0)),-360,360,5,func(v):
+		if not rotate_course(v): show_module.call_deferred(module))
 	paragraph("Gaps are horizontal distances between station entry centres, not clearances between their edges. Scaling keeps obstacle sizes unchanged.")
 	button_("Save course locally",save_course,null,true)
 	var row := HBoxContainer.new()
@@ -379,11 +434,7 @@ func editor_menu() -> void:
 	content.add_child(order)
 	button_("Earlier in route",func(): move_gate(-1),order).disabled = selected==0
 	button_("Later in route",func(): move_gate(1),order).disabled = selected==course.gates.size()-1
-	editor_map = MAP.new()
-	editor_map.host = self
-	editor_map.editable = true
-	editor_map.custom_minimum_size = Vector2(350,280)
-	content.add_child(editor_map)
+	if data.type!="zigzag": add_editor_map()
 	paragraph("ASSESSMENT RULES", "79e5c2")
 	field("Laps",course.laps,1,10,1,func(v): course.laps = int(v))
 	field("Qualifying seconds",course.qualifying_seconds,30,1800,5,func(v):
@@ -490,9 +541,16 @@ func confirm_restore() -> void:
 
 func controls_menu() -> void:
 	content.add_child(label_("Make it yours.",28,"f3f1dd"))
-	paragraph("Flight tuning and USB radio setup. Keyboard practice works without any controller.")
+	paragraph("Choose drone size, flight settings and your USB radio.")
+	var category := OptionButton.new()
+	for name_ in SIZES.LABELS: category.add_item(name_)
+	category.select(drone_category)
+	category.item_selected.connect(func(i): select_drone_size(i); show_module(module))
+	content.add_child(category)
+	field("Overall span (m)",drone_span,0.10,1.40,0.01,func(v): drone_span = v; apply_drone_size(); save_settings())
+	paragraph("Size labels refer to propellers. These overall-span presets are estimates; enter your measured full width for clearance. Size changes collision clearance, not the aircraft's flight tuning.")
 	var assisted_toggle := CheckButton.new()
-	assisted_toggle.text = "Keyboard assistance in practice"
+	assisted_toggle.text = "Auto-level in keyboard practice"
 	assisted_toggle.button_pressed = assisted
 	assisted_toggle.toggled.connect(func(v): assisted = v; save_settings())
 	content.add_child(assisted_toggle)
@@ -512,12 +570,9 @@ func controls_menu() -> void:
 	shadows_toggle.toggled.connect(func(v): shadows = v; apply_graphics(); save_settings())
 	content.add_child(shadows_toggle)
 	paragraph("USB CONTROLLER", "79e5c2")
-	var radio := CheckButton.new()
-	radio.text = "Use USB controller instead of keyboard"
-	radio.button_pressed = use_radio
-	radio.toggled.connect(func(v): use_radio = v; save_settings())
-	content.add_child(radio)
-	paragraph("Connect the radio in USB Joystick mode. Right stick: roll/pitch. Left stick: yaw/throttle (Mode 2). Calibrate one axis at a time: move fully both ways, return roll/pitch/yaw to centre, then confirm. Throttle should be at its lowest-power end before flight.")
+	device_picker()
+	paragraph("Choose keyboard or remote using the two buttons on the Fly screen. There is no separate USB-enable switch. Keyboard auto-level only affects keyboard practice.")
+	paragraph("Connect the radio in USB Joystick mode. Right stick: roll/pitch. Left stick: yaw/throttle (Mode 2). Calibrate one axis at a time: move fully both ways, return roll/pitch/yaw to centre, then confirm. For throttle, finish fully DOWN before Confirm; its direction is detected automatically.")
 	for i in range(4):
 		var row := HBoxContainer.new()
 		content.add_child(row)
@@ -532,32 +587,43 @@ func controls_menu() -> void:
 		content.add_child(readout)
 		axis_labels.append(readout)
 	button_("Confirm axis travel & centre",finish_calibration)
+	button_("Cancel unfinished calibration",cancel_calibration)
 	paragraph("Correct live values: roll RIGHT +1; pitch FORWARD −1; yaw RIGHT +1; throttle LOW −1 and HIGH +1. Toggle Invert if a channel is reversed.")
 	button_("Open beginner USB remote guide",show_remote_help)
 	paragraph("Mappings are saved for the currently connected device. Physical RadioMaster testing is still pending. Assessment always uses Acro and calm conditions.","c0b38f")
 
 func begin_calibration(index: int) -> void:
 	if joystick<0: status = "No controller detected. Connect a USB joystick first."; return
+	if calibrating>=0: cancel_calibration()
+	calibration_snapshot = {"axes":axes.duplicate(),"endpoints":endpoints.duplicate(),"centers":centers.duplicate()}
 	calibrating = index
 	calibration_step = 0
 	baseline.clear()
-	for i in range(10): baseline.append(Input.get_joy_axis(joystick,i))
+	for i in range(10): baseline.append(controller.axis(joystick,i))
 	status = "Move only %s fully in both directions." % ["ROLL","PITCH","YAW","THROTTLE"][index]
 
 func finish_calibration() -> void:
 	if calibrating<0 or joystick<0 or calibration_step==0: status = "Select Map, then move that stick fully first."; return
 	if calibration_max-calibration_min<0.8: status = "Axis travel too small. Move fully to both ends."; return
 	endpoints[calibrating] = Vector2(calibration_min,calibration_max)
-	centers[calibrating] = Input.get_joy_axis(joystick,axes[calibrating]) if calibrating<3 else (calibration_min+calibration_max)/2
+	centers[calibrating] = controller.axis(joystick,axes[calibrating]) if calibrating<3 else (calibration_min+calibration_max)/2
 	if calibrating<3 and (centers[calibrating]<calibration_min+0.1 or centers[calibrating]>calibration_max-0.1):
 		status = "Return that stick to centre before confirming."
 		return
+	if calibrating==3:
+		var low_reading := controller.axis(joystick,axes[3])
+		var margin := (calibration_max-calibration_min)*0.15
+		if low_reading>calibration_min+margin and low_reading<calibration_max-margin:
+			status = "Put the throttle fully DOWN, then Confirm. It must be at an endpoint."
+			return
+		inversions[3] = low_reading>(calibration_min+calibration_max)/2
 	calibrating = -1
+	calibration_snapshot.clear()
 	save_settings()
 	status = "Axis calibration saved. Check live values and inversion before flight."
 
 func device_section() -> String:
-	return "radio_"+Input.get_joy_guid(joystick)+"_"+Input.get_joy_name(joystick) if joystick>=0 else "default_radio"
+	return "radio_"+controller.device_guid(joystick)+"_"+controller.device_name(joystick) if joystick>=0 else "default_radio"
 
 func load_settings() -> void:
 	var cfg := ConfigFile.new()
@@ -572,6 +638,10 @@ func load_settings() -> void:
 	trainee = str(cfg.get_value("flight","trainee","Guest")).left(60)
 	motor_sound = bool(cfg.get_value("flight","motor_sound",true))
 	shadows = bool(cfg.get_value("flight","shadows",true))
+	drone_category = clampi(int(cfg.get_value("flight","drone_category",1)),0,SIZES.LABELS.size()-1)
+	drone_span = clampf(float(cfg.get_value("flight","drone_span",SIZES.SPANS[drone_category])),0.10,1.40)
+	preferred_radio_guid = str(cfg.get_value("flight","preferred_radio_guid",""))
+	preferred_radio_name = str(cfg.get_value("flight","preferred_radio_name",""))
 
 func load_radio() -> void:
 	var cfg := ConfigFile.new()
@@ -585,18 +655,21 @@ func load_radio() -> void:
 func save_settings() -> void:
 	var cfg := ConfigFile.new()
 	cfg.load(PROFILE_PATH)
-	for key in ["fov","rates","mass","wind","assisted","use_radio","deadzone","trainee","motor_sound","shadows"]: cfg.set_value("flight",key,get(key))
+	for key in ["fov","rates","mass","wind","assisted","use_radio","deadzone","trainee","motor_sound","shadows","drone_category","drone_span","preferred_radio_guid","preferred_radio_name"]: cfg.set_value("flight",key,get(key))
 	if joystick>=0:
+		var stored_axes: Array = calibration_snapshot.axes if calibrating>=0 and not calibration_snapshot.is_empty() else axes
+		var stored_ranges: Array = calibration_snapshot.endpoints if calibrating>=0 and not calibration_snapshot.is_empty() else endpoints
+		var stored_centers: Array = calibration_snapshot.centers if calibrating>=0 and not calibration_snapshot.is_empty() else centers
 		for i in range(4):
-			cfg.set_value(device_section(),"axis"+str(i),axes[i])
+			cfg.set_value(device_section(),"axis"+str(i),stored_axes[i])
 			cfg.set_value(device_section(),"invert"+str(i),inversions[i])
-			cfg.set_value(device_section(),"range"+str(i),endpoints[i])
-			cfg.set_value(device_section(),"center"+str(i),centers[i])
+			cfg.set_value(device_section(),"range"+str(i),stored_ranges[i])
+			cfg.set_value(device_section(),"center"+str(i),stored_centers[i])
 	if cfg.save(PROFILE_PATH)!=OK: status = "Settings could not be saved."
 
 func radio_axis(index: int) -> float:
 	if joystick<0: return 0.0
-	return normalize_axis(index,Input.get_joy_axis(joystick,axes[index]))
+	return normalize_axis(index,controller.axis(joystick,axes[index]))
 
 func normalize_axis(index: int, raw: float) -> float:
 	var range_: Vector2 = endpoints[index]
@@ -647,7 +720,7 @@ func export_results() -> void:
 	dialog.file_selected.connect(func(path):
 		var file := FileAccess.open(path,FileAccess.WRITE)
 		if file:
-			var keys := PackedStringArray(["timestamp","pilot","mode","result","seconds","crashes","contacts","score","course"])
+			var keys := PackedStringArray(["timestamp","pilot","mode","result","seconds","crashes","contacts","score","course","input","drone_size","span_metres"])
 			file.store_csv_line(keys)
 			for d in read_results():
 				var values := PackedStringArray()
@@ -681,9 +754,16 @@ func reset_run() -> void:
 	started = false
 	contact_cooldown = 0.5
 
-func start_flight(scored: bool) -> void:
-	if use_radio and joystick<0: status = "USB control selected, but no radio is connected. Switch to keyboard in Drone & Controls."; return
-	if use_radio and (radio_axis(3)+1)/2 > 0.1: status = "Lower radio throttle before starting. Check inversion if needed."; return
+func start_flight(scored: bool) -> bool:
+	if splash_remaining>0: return false
+	if use_radio:
+		var reason := remote_blocker()
+		if not reason.is_empty():
+			active = false
+			drone.freeze = true
+			status = reason
+			show_launch_problem()
+			return false
 	assessment = scored
 	reset_run()
 	in_flight = true
@@ -693,7 +773,9 @@ func start_flight(scored: bool) -> void:
 	menu.visible = false
 	hud.visible = true
 	minimap.visible = true
-	status = "Cross the first gate to start timing. "+("ACRO ASSESSMENT" if scored else "PRACTICE — no competition score")
+	if is_instance_valid(launch_dialog): launch_dialog.hide()
+	status = "Cross the first gate to start timing. "+("ACRO ASSESSMENT" if scored else "REMOTE ACRO PRACTICE" if use_radio else "KEYBOARD PRACTICE")
+	return true
 
 func leave_flight() -> void:
 	active = false
@@ -705,7 +787,7 @@ func leave_flight() -> void:
 	guide.visible = false
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	if not event is InputEventKey or not event.pressed or event.echo: return
+	if splash_remaining>0 or not event is InputEventKey or not event.pressed or event.echo: return
 	if event.keycode == KEY_F11:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if DisplayServer.window_get_mode()==DisplayServer.WINDOW_MODE_FULLSCREEN else DisplayServer.WINDOW_MODE_FULLSCREEN)
 	if event.keycode == KEY_ESCAPE:
@@ -725,33 +807,23 @@ func key_axis(positive: Key, negative: Key) -> float:
 	return float(Input.is_physical_key_pressed(positive))-float(Input.is_physical_key_pressed(negative))
 
 func _physics_process(delta: float) -> void:
-	var devices := Input.get_connected_joypads()
-	joystick = devices[0] if not devices.is_empty() else -1
-	if joystick!=previous_joystick:
-		if in_flight and use_radio:
-			active = false
-			drone.freeze = true
-			status = "Controller connection changed. Restart the flight after checking throttle."
-		calibrating = -1
-		previous_joystick = joystick
-		load_radio()
-		if module=="Drone & Controls" and is_instance_valid(content): show_module(module)
+	poll_radio()
 	if calibrating>=0 and joystick>=0:
 		if calibration_step==0:
 			for i in range(10):
-				if absf(Input.get_joy_axis(joystick,i)-baseline[i])>0.45:
+				if absf(controller.axis(joystick,i)-baseline[i])>0.45:
 					axes[calibrating] = i
-					calibration_min = minf(baseline[i],Input.get_joy_axis(joystick,i))
-					calibration_max = maxf(baseline[i],Input.get_joy_axis(joystick,i))
+					calibration_min = minf(baseline[i],controller.axis(joystick,i))
+					calibration_max = maxf(baseline[i],controller.axis(joystick,i))
 					calibration_step = 1
 					break
 		else:
-			var raw := Input.get_joy_axis(joystick,axes[calibrating])
+			var raw := controller.axis(joystick,axes[calibrating])
 			calibration_min = minf(calibration_min,raw)
 			calibration_max = maxf(calibration_max,raw)
 			status = "Travel %.2f to %.2f. Move both ways, centre stick, then Confirm." % [calibration_min,calibration_max]
 	for i in range(axis_labels.size()):
-		axis_labels[i].text = "Axis %d   %+.2f    %s" % [axes[i],radio_axis(i),Input.get_joy_name(joystick) if joystick>=0 else "No USB controller"]
+		axis_labels[i].text = "Axis %d   %+.2f    %s" % [axes[i],radio_axis(i),controller.device_name(joystick) if joystick>=0 else "No USB controller"]
 	if is_instance_valid(motor):
 		motor.volume_db = lerpf(motor.volume_db,-23.0+throttle*8 if active and motor_sound else -80.0,0.12)
 		motor.pitch_scale = 0.7+throttle*1.8+drone.linear_velocity.length()*0.008
@@ -786,6 +858,8 @@ func _physics_process(delta: float) -> void:
 		if drone.position.y < -3 or drone.position.y>80 or absf(drone.position.x)>100 or absf(drone.position.z)>100:
 			finish_run("Outside training area")
 	if is_instance_valid(notice): notice.text = status
+	if is_instance_valid(launch_message) and not in_flight: launch_message.text = status
+	if is_instance_valid(remote_readout) and is_instance_valid(launch_dialog) and launch_dialog.visible: update_launch_readout()
 	if in_flight:
 		var data: Dictionary = course.gates[next_gate]
 		target_label.text = "%02d / %02d   %s    ·    LAP %d / %d" % [next_gate+1,course.gates.size(),data.name.to_upper(),lap,course.laps]
@@ -810,7 +884,7 @@ func check_gate(from: Vector3, to: Vector3) -> void:
 		var b: Vector3 = gate.to_local(to)-sections[section_index].center
 		if not (a.z>0 and b.z<=0): break
 		var point := gate.to_local(from).lerp(gate.to_local(to),a.z/(a.z-b.z))
-		if not O.fits(data,point,section_index): break
+		if not O.fits(data,point,section_index,SIZES.radius(drone_span)): break
 		if not started: started = true; elapsed = 0
 		section_index += 1
 		if section_index == sections.size():
@@ -842,7 +916,7 @@ func finish_run(reason: String) -> void:
 	var score := 100-20*crashes-int(maxf(0,elapsed-float(course.qualifying_seconds))/5)
 	var bonus: float = course.get("bonus_seconds_per_point",0) if course.get("bonus_seconds_per_point") != null else 0
 	if bonus>0: score += int(maxf(0,float(course.qualifying_seconds)-elapsed)/bonus)
-	var result := {"timestamp":Time.get_datetime_string_from_system(),"pilot":trainee if not trainee.is_empty() else "Guest","mode":"Assessment" if assessment else "Practice","result":reason,"seconds":snappedf(elapsed,0.01),"crashes":crashes,"contacts":contacts,"score":maxi(0,score) if assessment and reason=="Course completed" else 0 if assessment else "Practice","course":course.name}
+	var result := {"timestamp":Time.get_datetime_string_from_system(),"pilot":trainee if not trainee.is_empty() else "Guest","mode":"Assessment" if assessment else "Practice","result":reason,"seconds":snappedf(elapsed,0.01),"crashes":crashes,"contacts":contacts,"score":maxi(0,score) if assessment and reason=="Course completed" else 0 if assessment else "Practice","course":course.name,"drone_size":SIZES.LABELS[drone_category],"span_metres":drone_span,"input":"Remote" if use_radio else "Keyboard"}
 	var f := FileAccess.open(RESULTS_PATH,FileAccess.READ_WRITE if FileAccess.file_exists(RESULTS_PATH) else FileAccess.WRITE)
 	if f:
 		f.seek_end()
@@ -852,13 +926,18 @@ func finish_run(reason: String) -> void:
 	if assessment and bonus<=0: status += " Time bonus is disabled in course rules."
 
 func _process(_delta: float) -> void:
+	update_splash(_delta)
 	if not "--capture" in OS.get_cmdline_user_args(): return
+	if splash_remaining>0:
+		if splash_remaining<1.5 and capture_stage==0:
+			get_viewport().get_texture().get_image().save_png("/workspace/fpv-review-splash.png")
+			capture_stage = -1
+		return
+	if capture_stage<0: capture_stage = 0
 	capture_ticks += 1
 	if capture_ticks%15!=0: return
-	var names := ["home","editor","controls","results","flight","hexagon","zigzag","triple","corridor","tunnel","u-tunnel","kz","triangle","square","diamond","arch","ladder","dive","hurdle","flag"]
-	if capture_stage>0:
-		var img := get_viewport().get_texture().get_image()
-		img.save_png("/workspace/fpv-review-"+names[capture_stage-1]+".png")
+	var names := ["home","editor","controls","results","flight","hexagon","zigzag","triple","corridor","tunnel","u-tunnel","kz","triangle","square","diamond","arch","ladder","dive","hurdle","flag","poles","remote-check"]
+	if capture_stage>0: get_viewport().get_texture().get_image().save_png("/workspace/fpv-review-"+names[capture_stage-1]+".png")
 	if capture_stage>=names.size():
 		set_process(false)
 		get_tree().quit.call_deferred()
@@ -868,11 +947,20 @@ func _process(_delta: float) -> void:
 		1: selected = 0; show_module("Course Editor")
 		2: show_module("Drone & Controls")
 		3: show_module("Training Results")
-		4: start_flight(false); active = false; drone.freeze = true
+		4: launch_keyboard(); active = false; drone.freeze = true
+		20:
+			leave_flight()
+			selected = 2
+			O.ensure_poles(course.gates[2])
+			course.gates[2].pole_offsets[1].x = 1.5
+			course.gates[2].pole_offsets[3].x = -1.5
+			selected_pole = 1
+			rebuild_course()
+			show_module("Course Editor")
+		21: leave_flight(); show_module("Fly"); launch_remote()
 		_:
 			leave_flight()
-			if capture_stage<12:
-				selected = [1,2,7,9,10,11,12][capture_stage-5]
+			if capture_stage<12: selected = [1,2,7,9,10,11,12][capture_stage-5]
 			else:
 				selected = 0
 				O.apply_preset(course.gates[0],O.TYPES[capture_stage-3])
@@ -979,3 +1067,242 @@ func show_remote_help() -> void:
 	dialog.confirmed.connect(dialog.queue_free)
 	dialog.canceled.connect(dialog.queue_free)
 	dialog.popup_centered()
+
+func launch_keyboard() -> bool:
+	use_radio = false
+	if calibrating>=0: cancel_calibration()
+	save_settings()
+	return start_flight(launch_assessment)
+
+func launch_remote() -> bool:
+	use_radio = true
+	poll_radio()
+	save_settings()
+	return start_flight(launch_assessment)
+
+func remote_blocker() -> String:
+	if joystick<0: return "No selected USB remote is connected. Connect it in USB Joystick/HID mode, then choose the device in Drone & Controls."
+	if calibrating>=0: return "Axis calibration is unfinished. Confirm its travel and centre, or Cancel unfinished calibration in Drone & Controls."
+	for i in range(4):
+		for j in range(i):
+			if axes[i]==axes[j]: return "%s and %s both use axis %d. Map each movement to a different radio axis." % [["Roll","Pitch","Yaw","Throttle"][j],["Roll","Pitch","Yaw","Throttle"][i],axes[i]]
+	var power := (radio_axis(3)+1)/2
+	if power>0.10: return "Throttle is at %d%%. Move the throttle stick fully DOWN. Low should read −1.00. If DOWN reads +1.00, invert throttle; if it does not change, remap throttle." % roundi(power*100)
+	return ""
+
+func show_launch_problem() -> void:
+	if not is_instance_valid(launch_dialog):
+		launch_dialog = AcceptDialog.new()
+		launch_dialog.title = "Remote flight — setup check"
+		launch_dialog.dialog_hide_on_ok = false
+		launch_dialog.get_ok_button().text = "Start Remote Flight"
+		launch_dialog.min_size = Vector2i(660,390)
+		remote_readout = Label.new()
+		remote_readout.custom_minimum_size = Vector2(610,310)
+		remote_readout.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		launch_dialog.add_child(remote_readout)
+		launch_dialog.add_button("Open Controls",false,"controls")
+		launch_dialog.add_button("Invert Throttle",false,"invert")
+		launch_dialog.confirmed.connect(launch_remote)
+		launch_dialog.custom_action.connect(func(action):
+			if action=="controls":
+				launch_dialog.hide()
+				leave_flight()
+				show_module("Drone & Controls")
+			if action=="invert" and joystick>=0:
+				inversions[3] = not inversions[3]
+				save_settings()
+				update_launch_readout())
+		add_child(launch_dialog)
+	update_launch_readout()
+	launch_dialog.popup_centered()
+
+func update_launch_readout() -> void:
+	var device := controller.device_name(joystick) if joystick>=0 else "NOT CONNECTED"
+	var reason := remote_blocker()
+	if joystick<0:
+		remote_readout.text = "SELECTED REMOTE: NOT CONNECTED\n\n"+reason+"\n\nUse a data cable and USB Joystick/HID mode. Open Controls to select the device.\n\nKeyboard flight is available separately on the Fly screen."
+		return
+	remote_readout.text = "SELECTED REMOTE: %s\n\n%s\n\nThrottle: %+.2f  /  %d%% motor command\nRoll: %+.2f   Pitch: %+.2f   Yaw: %+.2f\n\nThe throttle must be near −1.00 before starting. When ready, click Start Remote Flight.\n\nKeyboard flight is separate: close this window and use Fly with Keyboard." % [device,reason if not reason.is_empty() else "READY — throttle is low. You can start.",radio_axis(3),roundi((radio_axis(3)+1)*50),radio_axis(0),radio_axis(1),radio_axis(2)]
+
+func poll_radio() -> void:
+	var devices: Array[int] = controller.devices()
+	var chosen := -1
+	for id in devices:
+		if (not preferred_radio_guid.is_empty() or not preferred_radio_name.is_empty()) and controller.device_guid(id)==preferred_radio_guid and controller.device_name(id)==preferred_radio_name:
+			chosen = id
+			break
+	if chosen<0 and preferred_radio_guid.is_empty() and preferred_radio_name.is_empty() and not devices.is_empty(): chosen = devices[0]
+	joystick = chosen
+	if joystick==previous_joystick: return
+	if in_flight and use_radio:
+		active = false
+		drone.freeze = true
+		status = "Remote connection changed. Check the selected device and throttle before restarting."
+	calibrating = -1
+	previous_joystick = joystick
+	calibration_snapshot.clear()
+	load_radio()
+	if module=="Drone & Controls" and is_instance_valid(content): show_module.call_deferred(module)
+
+func device_picker() -> void:
+	var devices: Array[int] = controller.devices()
+	var picker := OptionButton.new()
+	if devices.is_empty():
+		picker.add_item("No USB radio detected")
+		picker.disabled = true
+	else:
+		for i in range(devices.size()):
+			var id: int = devices[i]
+			picker.add_item(controller.device_name(id),id)
+			if id==joystick: picker.select(i)
+		picker.item_selected.connect(func(index):
+			var id := picker.get_item_id(index)
+			preferred_radio_guid = controller.device_guid(id)
+			preferred_radio_name = controller.device_name(id)
+			poll_radio()
+			save_settings())
+	content.add_child(picker)
+	paragraph("If more than one controller is connected, select the radio you calibrated. Fly with Remote selects USB input automatically.")
+
+func select_drone_size(index: int) -> void:
+	drone_category = clampi(index,0,SIZES.LABELS.size()-1)
+	drone_span = SIZES.SPANS[drone_category]
+	apply_drone_size()
+	save_settings()
+
+func apply_drone_size() -> void:
+	if is_instance_valid(drone_collision):
+		var shape := SphereShape3D.new()
+		shape.radius = SIZES.radius(drone_span)
+		drone_collision.shape = shape
+
+func pole_editor(data: Dictionary) -> void:
+	O.ensure_poles(data)
+	paragraph("INDIVIDUAL ZIG ZAG POLES", "79e5c2")
+	paragraph("Choose a pole to move it left/right or forward/back. Orange marks the selected pole. You can also drag its numbered orange point on the map below.")
+	var select := OptionButton.new()
+	for i in range(5): select.add_item("Pole %d" % [i+1])
+	selected_pole = clampi(selected_pole,0,4)
+	select.select(selected_pole)
+	select.item_selected.connect(func(i): selected_pole = i; show_module(module))
+	content.add_child(select)
+	var offset: Dictionary = data.pole_offsets[selected_pole]
+	field("Pole X — left/right",offset.x,-8,8,0.1,func(v): offset.x = v; rebuild_course())
+	field("Pole Z — front/back",offset.z,-8,8,0.1,func(v): offset.z = v; rebuild_course())
+	button_("Reset five poles to a straight line",func():
+		data.erase("pole_offsets")
+		O.ensure_poles(data)
+		rebuild_course()
+		show_module(module))
+	highlight_pole()
+
+func highlight_pole() -> void:
+	if selected<0 or selected>=gates.size() or course.gates[selected].type!="zigzag": return
+	for i in range(5):
+		var mesh := gates[selected].get_node_or_null("SlalomPole%02d" % i)
+		if mesh is MeshInstance3D: mesh.material_override = O.material(Color("df793e") if i==selected_pole else Color("bda13c"))
+
+func set_pole_world_position(index: int, world_xz: Vector2) -> bool:
+	var data: Dictionary = course.gates[selected]
+	var gate := gates[selected]
+	var delta := world_xz-Vector2(gate.position.x,gate.position.z)
+	var determinant := gate.basis.x.x*gate.basis.z.z-gate.basis.z.x*gate.basis.x.z
+	if absf(determinant)<0.05:
+		status = "This station is nearly vertical. Use the Pole X/Z fields instead of top-down dragging."
+		return false
+	O.ensure_poles(data)
+	var x := (delta.x*gate.basis.z.z-delta.y*gate.basis.z.x)/determinant
+	var z := (gate.basis.x.x*delta.y-gate.basis.x.z*delta.x)/determinant+float(data.depth)*index/4
+	data.pole_offsets[index].x = snappedf(clampf(x,-8,8),0.1)
+	data.pole_offsets[index].z = snappedf(clampf(z,-8,8),0.1)
+	rebuild_course()
+	return true
+
+func rotate_course(value: float) -> bool:
+	if value< -360 or value>360: return false
+	var angle := deg_to_rad(value-float(course.get("layout_rotation",0)))
+	var rotation_ := Basis(Vector3.UP,angle)
+	var anchor := Vector3(course.gates[0].x,0,course.gates[0].z)
+	var positions: Array[Vector3] = []
+	for data in course.gates:
+		var point: Vector3 = anchor+rotation_*(Vector3(data.x,0,data.z)-anchor)
+		if absf(point.x)>95 or absf(point.z)>95:
+			status = "Rotation would exceed the editable area. Move the course or choose a smaller turn."
+			return false
+		positions.append(point)
+	for i in range(positions.size()):
+		course.gates[i].x = positions[i].x
+		course.gates[i].z = positions[i].z
+		course.gates[i].yaw_degrees = wrapf(float(course.gates[i].yaw_degrees)+rad_to_deg(angle),-180,180)
+	course.layout_rotation = value
+	rebuild_course()
+	focus_gate()
+	status = "Course rotated %.0f°. Shapes and gaps unchanged. Save course to keep it." % value
+	if module=="Course Editor": show_module.call_deferred(module)
+	return true
+
+func show_splash() -> void:
+	splash_remaining = 2.0
+	if is_instance_valid(splash_control): splash_control.get_parent().queue_free()
+	var layer := CanvasLayer.new()
+	layer.layer = 50
+	add_child(layer)
+	splash_control = Control.new()
+	splash_control.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(splash_control)
+	var background := ColorRect.new()
+	background.color = Color("091d19")
+	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	splash_control.add_child(background)
+	var centre := CenterContainer.new()
+	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	splash_control.add_child(centre)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation",18)
+	centre.add_child(column)
+	var icon := TextureRect.new()
+	icon.texture = load("res://assets/icon.svg")
+	icon.custom_minimum_size = Vector2(108,108)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	column.add_child(icon)
+	var title := label_("AL JEHAD",64,"f3f1dd")
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(title)
+	var subtitle := label_("FPV  OBSTACLE  COURSE",24,"79e5c2")
+	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(subtitle)
+	splash_progress = ProgressBar.new()
+	splash_progress.custom_minimum_size = Vector2(560,4)
+	splash_progress.show_percentage = false
+	splash_progress.add_theme_stylebox_override("background",style("1c3e33",2,0))
+	splash_progress.add_theme_stylebox_override("fill",style("79e5c2",2,0))
+	column.add_child(splash_progress)
+	var footer := label_("OFFLINE FLIGHT SIMULATOR   /   VERSION 0.4",12,"79988c")
+	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(footer)
+
+func update_splash(delta: float) -> void:
+	if splash_remaining<=0: return
+	splash_remaining = maxf(0,splash_remaining-delta)
+	if is_instance_valid(splash_progress): splash_progress.value = (1-splash_remaining/2)*100
+	if splash_remaining<=0 and is_instance_valid(splash_control):
+		var layer := splash_control.get_parent()
+		layer.queue_free()
+
+func cancel_calibration() -> void:
+	if not calibration_snapshot.is_empty():
+		axes.assign(calibration_snapshot.axes)
+		endpoints.assign(calibration_snapshot.endpoints)
+		centers.assign(calibration_snapshot.centers)
+	calibration_snapshot.clear()
+	calibrating = -1
+	status = "Calibration cancelled. Previous axis mappings kept."
+
+func add_editor_map() -> void:
+	editor_map = MAP.new()
+	editor_map.host = self
+	editor_map.editable = true
+	editor_map.custom_minimum_size = Vector2(350,280)
+	content.add_child(editor_map)
