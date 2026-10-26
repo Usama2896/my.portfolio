@@ -1,4 +1,4 @@
-# AL JEHAD FPV OBSTACLE COURSE 0.6
+# AL JEHAD FPV OBSTACLE COURSE 0.7
 
 Independent offline FPV simulator in Godot 4.6.3, using the Compatibility renderer. No Liftoff assets or interfaces are used. The Windows export needs no engine installation or network connection.
 
@@ -96,13 +96,14 @@ Use a separate, fresh XDG_DATA_HOME for each test on Linux, since tests write te
     godot --headless --fixed-fps 60 --path . --script res://tests/crashes.gd
     godot --headless --fixed-fps 60 --path . --script res://tests/upward_tunnel.gd
     godot --headless --fixed-fps 60 --path . --script res://tests/stability_visibility.gd
+    godot --headless --fixed-fps 60 --path . --script res://tests/basic_guidance.gd
     node tests/radio_page.cjs
 
 For the native mouse-click check on Linux, use an X11/Xvfb display with libXtst and run:
 
     DISPLAY=:99 python3 tests/popup_mouse.py
 
-423 checks passed: 415 Godot checks (129 general, 101 obstacle/spacing, 6 keyboard flight, 24 yaw, 29 remote launch/arming/calibration, 38 customization/size, 24 impact/recovery, 47 upward-tunnel, 17 stability/visibility), seven JavaScript radio-page checks and one native rendered popup mouse-click check. The controller_input.gd adapter wraps native Godot input. Remote tests inject deterministic device/axis reports through that same interface and verify actual button signals, launch state, throttle-driven physics, inversion, calibration cancellation/persistence and disconnect behavior. This is distinct from physical USB testing. Clearance tests check both analytic gate progression and actual collisions for different sizes.
+451 checks passed: 443 Godot checks (129 general, 101 obstacle/spacing, 6 keyboard flight, 24 yaw, 29 remote launch/arming/calibration, 38 customization/size, 24 impact/recovery, 47 upward-tunnel, 17 stability/visibility, 28 Basic/yaw/guidance), seven JavaScript radio-page checks and one native rendered popup mouse-click check. The controller_input.gd adapter wraps native Godot input. Remote tests inject deterministic device/axis reports through that same interface and verify actual button signals, launch state, throttle-driven physics, inversion, calibration cancellation/persistence and disconnect behavior. This is distinct from physical USB testing. Clearance tests check both analytic gate progression and actual collisions for different sizes.
 
 Rendered screenshots were inspected using software OpenGL. Windows export and packed-resource startup were checked in Linux. Physical Windows performance and the revised TX16/Pocket launch require user retesting. The executable is unsigned; report warnings without disabling protection.
 
@@ -131,3 +132,15 @@ High visibility brightens only obstacle materials and modestly increases ambient
 Beginner Stabilized Practice is opt-in. Steering is exponentially smoothed (rate 8/s), pitch/roll target about ±15°, and yaw is gentler. Releasing controls self-levels; centred pitch/roll add horizontal braking. For remote input, throttle near 50% holds vertical speed at zero, higher/lower commands climb/descent, and input ≤10% cuts thrust. Low-throttle arming/recovery remains mandatory. Keyboard uses the existing climb/descend keys. Ordinary remote Practice is unchanged Acro; assessment always bypasses assistance even if the preference is saved.
 
 New control/visibility preferences are stored in the existing settings file. Session/CSV records include control_mode to distinguish Beginner Stabilized, Keyboard Assist and Acro. All assistance is an approximate training aid and has not been calibrated to a real aircraft.
+
+## V0.7 Basic guided mode and independent yaw
+
+Practice yaw uses yaw_rate (default 180°/s, range 45–540) rather than the previous hard-coded stabilized yaw limit (1.2 rad/s). Basic uses yaw_rate × 0.8; assessment deliberately uses the existing rates value. Pitch/roll stays independent. Keyboard and radio full-stick direction conventions remain unchanged. The simulation's angular damping/smoothing means measured short-turn totals are lower than the nominal rate.
+
+Basic Guided Practice is opt-in and is an additional practice level. Selecting it initially selects God Mode; the user can still choose Crash Mode. It holds a level horizon and commands slow yaw-relative horizontal velocity rather than requiring continuous manual banking. A 3/s velocity-feedback force cancels the horizontal component of motor force; diagonal movement is limited to basic_speed (default 1.8 m/s, range 0.5–4). Centred controls brake toward zero velocity. Height assistance uses slower climb/descent than Beginner. Fully low remote throttle cuts thrust. Existing low-throttle arming/checkpoint logic stays in force. Basic ignores practice wind; other practice modes retain it.
+
+Guidance is split into guidance.gd (visual 3D path/ghost/centre plus) and flight_guidance.gd (2D centre crosshair, target reticle, edge arrows and instructions). Path samples use the actual obstacle section basis, including the upward U-tunnel and selected fitting hole for triple/ladder gates. Wrong-side approach aims toward a valid preceding entry point. Oversized envelopes show a warning and hide the ghost/path. Ghosts/breadcrumbs have no collision objects, triggers or flight controls and never call gate progression. They hide near the camera to avoid obstructing the pilot. Gate-clear feedback is triggered only by the actual progression function.
+
+Guidance and Basic controls are disabled in assessment even if preferences are saved. The existing ordinary Practice and Beginner modes remain. New preferences persist in the existing settings file; session/CSV records include Basic Guided control_mode and the effective yaw_rate_deg.
+
+The guide is an illustrative centre route, not obstacle avoidance or an autopilot. Arbitrarily overlapping or badly ordered custom courses can still be impossible. Existing crash and physical clearance rules remain authoritative. Basic's force assistance is intentionally an easy learning aid, not real quadcopter dynamics.

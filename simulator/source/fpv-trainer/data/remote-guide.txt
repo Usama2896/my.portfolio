@@ -1,4 +1,4 @@
-AL JEHAD FPV OBSTACLE COURSE — VERSION 0.6
+AL JEHAD FPV OBSTACLE COURSE — VERSION 0.7
 BEGINNER GUIDE: USB, REMOTE, KEYBOARD AND CUSTOMIZATION
 
 A. COPY AND OPEN THE NEW VERSION
@@ -7,12 +7,12 @@ A. COPY AND OPEN THE NEW VERSION
 3. Right-click the ZIP, choose Extract All, then Extract.
 4. Open the AL-JEHAD-FPV folder. Double-click AlJehadFPV.exe.
 Keep all files together. A shortcut alone does not contain the simulator.
-5. The AL JEHAD opening screen appears for about two seconds, then the menu opens. Check that the screen says V0.6 so you know you opened the new version.
+5. The AL JEHAD opening screen appears for about two seconds, then the menu opens. Check that the screen says V0.7 so you know you opened the new version.
 No VS Code, Godot, Steam or Internet is needed to run it.
 
 B. THE TWO FLIGHT BUTTONS
 6. Pilot name is an optional text field; Guest is simply the default name.
-7. Choose Practice or Acro Assessment from Flight mode.
+7. Choose ordinary Practice, Beginner Stabilized, Basic Guided, or Acro Assessment from Flight mode.
 8. Fly with Keyboard ALWAYS selects the keyboard, even if a radio is plugged in or USB was enabled in an older version.
 9. Fly with Remote ALWAYS selects the remote. There is no separate USB-enable switch anymore.
 Keyboard auto-level is a practice aid; it is not an input-enable switch.
@@ -58,7 +58,7 @@ F. NEW REMOTE START AND DIAGNOSTICS
 
 G. FIRST REMOTE FLIGHT
 29. Put throttle fully DOWN. Click Fly with Remote and wait for REMOTE ARMED.
-30. Remote practice is Acro: it does NOT automatically level or hold height. Raise throttle slowly until it lifts, then use small inputs.
+30. Ordinary remote Practice is Acro: it does NOT automatically level or hold height. Raise throttle slowly until it lifts, then use small inputs. Beginner/Basic assistance is explained below.
 31. To turn in place, keep the RIGHT stick centred and gently move the LEFT stick sideways. This is yaw. Turning does not brake motion if the drone is already moving.
 32. Enter pauses, R restarts, Esc opens the menu, F11 toggles full screen. Lower throttle before resuming. Restarting opens a disarmed flight view first.
 A connection change pauses remote flight. Reconnect, check the device and throttle, then restart.
@@ -97,7 +97,7 @@ Zig Zag Depth is the total length of its pole line. 1 metre is about 3.28 feet.
 Save course locally when finished. Export course.json to back up a custom layout before restoring the supplied course.
 
 L. TROUBLESHOOTING AND LIMITS
-Old controls/menu still visible: close the old app and open AlJehadFPV.exe from the newly extracted V0.6 folder.
+Old controls/menu still visible: close the old app and open AlJehadFPV.exe from the newly extracted V0.7 folder.
 Slow frame rate: switch shadows OFF in Drone & Controls.
 Windows warning: note the exact wording; do not disable protection.
 Saved files remain in %APPDATA%/Godot/app_userdata/DTC Flight Lab/ to preserve your previous calibration and courses.
@@ -121,7 +121,7 @@ The same page opens from Controls > Open offline browser Radio Test.
 If your browser restricts gamepads on local files, use the app's Copy remote diagnostic report instead. You do not need to install drivers just to try this page.
 This page is a controller diagnostic, not a browser version of the simulator, and does not give the cloud assistant direct access to your USB device.
 
-O. NEW UPWARD U-TUNNEL (V0.6)
+O. NEW UPWARD U-TUNNEL (V0.7)
 The old U-tunnel is replaced using the supplied photograph.
 Enter through the horizontal mouth, follow the covered tube, then climb around
 the bend and leave through the OPEN TOP. Follow the target points as they rise.
@@ -149,3 +149,38 @@ climb; bring it near halfway to hold height. Below halfway descends; fully down
 cuts the motors. Keep the right stick centred when you want to stop tilting.
 With a KEYBOARD: Up/Down climb/descend; release to hold height. Other keys stay
 the same. This is a learning aid, not an exact copy of a commercial flight model.
+
+R. FASTER YAW WITHOUT CHANGING PITCH/ROLL
+Drone & Controls > Yaw speed controls how fast the drone turns left/right.
+The practice default is now 180 degrees per second; raise it for quicker turns,
+or lower it if too sharp. Basic uses 80% of this setting. Pitch/roll is separate.
+Acro Assessment keeps its original Acro rate. No remapping of the yaw stick is
+needed if your existing calibration/direction was correct.
+
+S. BASIC GUIDED PRACTICE — THE EASIEST LEVEL
+On Fly choose Basic Guided Practice — easiest, then Keyboard or Remote.
+This is a separate practice level, not a replacement for Beginner Stabilized.
+God Mode is selected initially so bumps do not cause a crash/reset. You can
+choose Crash Mode if you want to practise recovery later.
+Basic holds a level horizon. Movement is slow and calm. Release keys or centre
+pitch/roll sticks to brake and stop instead of keeping a difficult bank angle.
+Keyboard: W/S forward/back, A/D sideways, Q/E or Left/Right turn, Up/Down height.
+Remote Mode 2: right stick forward/back/sideways, left stick sideways turns.
+Remote throttle: low to arm; above halfway climbs; near halfway holds height;
+below halfway descends; fully low cuts the motors. Keyboard starts in a hover.
+Basic speed in Drone & Controls adjusts travel speed; the default is 1.8 m/s.
+Basic ignores the practice wind setting so learning stays calm.
+
+FOLLOW THE MARKERS
+The + in the centre is your aim reference. The outlined +/circle marks the next
+opening. Line them up while approaching. Green/centred feedback helps you aim.
+A cyan drone moves along the dotted route ahead. It shows the way; YOU still fly
+your own drone. It is not autopilot and cannot count gates for you.
+Near the camera, the ghost and big world markers hide to keep your view clear.
+The small screen aiming marker remains. The guide follows the upward U-tunnel.
+If the target is off screen, an arrow says which way to turn or climb/descend.
+If you approach from the wrong side, it points back toward the correct entry.
+GATE CLEAR appears when a full obstacle is actually passed in the right order.
+If it says the opening is too small, select a smaller drone span or widen the
+obstacle in the editor. Guidance does not secretly change collision geometry.
+Assessment always stays Acro and has no Basic guide or movement assistance.

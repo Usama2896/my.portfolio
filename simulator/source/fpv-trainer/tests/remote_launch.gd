@@ -104,7 +104,7 @@ func run() -> void:
 	radio.reports[1][3] = -0.2
 	for i in range(90): await physics_frame
 	check(app.drone.position.y>initial_y+1,"mapped remote throttle generates real physics lift")
-	check(app.remote_report().contains("axis=") and app.remote_report().contains("v0.6"),"diagnostic report contains launch and axis data")
+	check(app.remote_report().contains("axis=") and app.remote_report().contains("v0.7"),"diagnostic report contains launch and axis data")
 	app.leave_flight()
 	app.show_module("Drone & Controls")
 	check(app.content.get_children().filter(func(c): return c is CheckButton and c.text.contains("Use USB controller")).is_empty(),"no obsolete USB-enable switch")

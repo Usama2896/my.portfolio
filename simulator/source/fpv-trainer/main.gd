@@ -1,4 +1,6 @@
 extends Node3D
+const GUIDANCE = preload("res://guidance.gd")
+const GUIDANCE_HUD = preload("res://flight_guidance.gd")
 const BODY = preload("res://drone_body.gd")
 const APP_TITLE = "AL JEHAD FPV OBSTACLE COURSE"
 const INPUT_ADAPTER = preload("res://controller_input.gd")
@@ -23,6 +25,11 @@ var selected_pole := 0
 var splash_control: Control
 var splash_progress: ProgressBar
 var splash_remaining := 0.0
+var course_revision := 0
+var guidance: Node3D
+var practice_basic := false
+var yaw_rate := 180.0
+var basic_speed := 1.8
 var course: Dictionary
 var gates: Array[Node3D] = []
 var gate_root: Node3D
@@ -118,6 +125,9 @@ func _ready() -> void:
 	add_child(gate_root)
 	rebuild_course()
 	create_drone()
+	guidance = GUIDANCE.new()
+	guidance.host = self
+	add_child(guidance)
 	overview = Camera3D.new()
 	add_child(overview)
 	overview.position = Vector3(15,16,20)
@@ -176,6 +186,7 @@ func valid_course(value: Variant) -> bool:
 	return true
 
 func rebuild_course() -> void:
+	course_revision += 1
 	for child in gate_root.get_children():
 		gate_root.remove_child(child)
 		child.queue_free()
@@ -315,7 +326,7 @@ func build_interface() -> void:
 	notice.offset_right = -20
 	notice.offset_top = -35
 	overlay.add_child(notice)
-	version_label = label_("OFFLINE  /  V0.6   •   APPROXIMATE COURSE",12,"e0ead7")
+	version_label = label_("OFFLINE  /  V0.7   •   APPROXIMATE COURSE",12,"e0ead7")
 	version_label.position = Vector2(450,96)
 	overlay.add_child(version_label)
 	hud = PanelContainer.new()
@@ -377,8 +388,9 @@ func fly_menu() -> void:
 	mode.add_item("Practice — learn and retry")
 	mode.add_item("Acro Assessment — timed and scored")
 	mode.add_item("Beginner Stabilized Practice")
-	mode.select(1 if launch_assessment else 2 if practice_stabilized else 0)
-	mode.item_selected.connect(func(i): launch_assessment = i==1; practice_stabilized = i==2; save_settings(); show_module.call_deferred("Fly"))
+	mode.add_item("Basic Guided Practice — easiest")
+	mode.select(1 if launch_assessment else 3 if practice_basic else 2 if practice_stabilized else 0)
+	mode.item_selected.connect(select_flight_mode)
 	content.add_child(mode)
 	var collisions := OptionButton.new()
 	collisions.add_item("Crash Mode — impacts and checkpoint restart")
@@ -393,6 +405,7 @@ func fly_menu() -> void:
 	launch_message = label_("",14,"ffc98e")
 	launch_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	content.add_child(launch_message)
+	if practice_basic: paragraph("BASIC: follow the cyan guide drone and dotted route. Centre your + on the marked opening. Release movement sticks/keys to stop. God Mode is selected initially; you can choose Crash Mode.")
 	paragraph("The two buttons select the input automatically. No hidden USB switch is needed.")
 	paragraph("KEYBOARD PRACTICE\nAuto-level and height assistance. W/S tilt; A/D bank; Q/E or ←/→ turn. ↑/↓ climb and descend.")
 	paragraph("BEGINNER STABILIZED\nOptional auto-level, softer steering and braking with centred sticks. For remote height assistance, keep throttle near halfway to hold height; fully down still cuts motors.")
@@ -605,7 +618,10 @@ func controls_menu() -> void:
 	labels.toggled.connect(func(v): show_all_labels = v; save_settings())
 	content.add_child(labels)
 	paragraph("Only the current obstacle is labelled during flight by default. Reduce FOV to make obstacles appear larger; their physical size stays unchanged.")
-	field("Acro rates °/s",rates,60,500,10,func(v): rates = v; save_settings())
+	field("Pitch/roll rate °/s",rates,60,500,10,func(v): rates = v; save_settings())
+	field("Yaw speed °/s",yaw_rate,45,540,15,func(v): yaw_rate = v; save_settings())
+	field("Basic speed m/s",basic_speed,0.5,4,0.1,func(v): basic_speed = v; save_settings())
+	paragraph("Yaw speed adjusts turning independently. Basic uses 80% of this speed; assessment retains its Acro rate.")
 	field("Drone mass kg",mass,0.25,2,0.05,func(v): mass = v; drone.mass = v; save_settings())
 	field("Practice wind m/s",wind,0,8,0.5,func(v): wind = v; save_settings())
 	field("Stick dead zone",deadzone,0,0.25,0.01,func(v): deadzone = v; save_settings())
@@ -693,6 +709,9 @@ func load_settings() -> void:
 	high_visibility = bool(cfg.get_value("flight","high_visibility",true))
 	show_all_labels = bool(cfg.get_value("flight","show_all_labels",false))
 	practice_stabilized = bool(cfg.get_value("flight","practice_stabilized",false))
+	practice_basic = bool(cfg.get_value("flight","practice_basic",false))
+	yaw_rate = clampf(float(cfg.get_value("flight","yaw_rate",180)),45,540)
+	basic_speed = clampf(float(cfg.get_value("flight","basic_speed",1.8)),0.5,4)
 	practice_god_mode = bool(cfg.get_value("flight","practice_god_mode",false))
 	drone_category = clampi(int(cfg.get_value("flight","drone_category",1)),0,SIZES.LABELS.size()-1)
 	drone_span = clampf(float(cfg.get_value("flight","drone_span",SIZES.SPANS[drone_category])),0.10,1.40)
@@ -711,7 +730,7 @@ func load_radio() -> void:
 func save_settings() -> void:
 	var cfg := ConfigFile.new()
 	cfg.load(PROFILE_PATH)
-	for key in ["fov","rates","mass","wind","assisted","use_radio","deadzone","trainee","motor_sound","shadows","drone_category","drone_span","preferred_radio_guid","preferred_radio_name","practice_god_mode","high_visibility","show_all_labels","practice_stabilized"]: cfg.set_value("flight",key,get(key))
+	for key in ["fov","rates","mass","wind","assisted","use_radio","deadzone","trainee","motor_sound","shadows","drone_category","drone_span","preferred_radio_guid","preferred_radio_name","practice_god_mode","high_visibility","show_all_labels","practice_stabilized","practice_basic","yaw_rate","basic_speed"]: cfg.set_value("flight",key,get(key))
 	if joystick>=0:
 		var stored_axes: Array = calibration_snapshot.axes if calibrating>=0 and not calibration_snapshot.is_empty() else axes
 		var stored_ranges: Array = calibration_snapshot.endpoints if calibrating>=0 and not calibration_snapshot.is_empty() else endpoints
@@ -776,7 +795,7 @@ func export_results() -> void:
 	dialog.file_selected.connect(func(path):
 		var file := FileAccess.open(path,FileAccess.WRITE)
 		if file:
-			var keys := PackedStringArray(["timestamp","pilot","mode","result","seconds","crashes","contacts","score","course","input","drone_size","span_metres","collision_mode","control_mode"])
+			var keys := PackedStringArray(["timestamp","pilot","mode","result","seconds","crashes","contacts","score","course","input","drone_size","span_metres","collision_mode","control_mode","yaw_rate_deg"])
 			file.store_csv_line(keys)
 			for d in read_results():
 				var values := PackedStringArray()
@@ -807,6 +826,9 @@ func reset_run() -> void:
 	contacts = 0
 	throttle = 0
 	smooth_sticks = Vector3.ZERO
+	if is_instance_valid(guidance):
+		guidance.cache_key = ""
+		guidance.passed_seconds = 0
 	remote_waiting_low = false
 	low_throttle_time = 0
 	crash_phase = ""
@@ -848,7 +870,7 @@ func start_flight(scored: bool) -> bool:
 	hud.visible = true
 	minimap.visible = true
 	if is_instance_valid(launch_dialog): launch_dialog.hide()
-	status = "Lower throttle fully to arm. The remote flight view is open." if use_radio else "Cross the first gate to start timing. KEYBOARD PRACTICE" if not scored else "ACRO ASSESSMENT"
+	status = "Lower throttle fully to arm. The remote flight view is open." if use_radio else "BASIC GUIDED — follow the cyan route. Release movement controls to stop." if practice_basic and not scored else "Cross the first gate to start timing. KEYBOARD PRACTICE" if not scored else "ACRO ASSESSMENT"
 	last_launch_action = "Flight view opened — waiting for low throttle" if use_radio else "Keyboard flight started"
 	return true
 
@@ -922,7 +944,8 @@ func _physics_process(delta: float) -> void:
 			pitch = radio_axis(1)
 			yaw = -radio_axis(2) # Positive live yaw input means turn RIGHT, clockwise.
 			throttle = clampf((radio_axis(3)+1)/2,0,1)
-		var beginner := practice_stabilized and not assessment
+		var basic := practice_basic and not assessment
+		var beginner := (practice_stabilized or basic) and not assessment
 		if beginner:
 			smooth_sticks = smooth_sticks.lerp(Vector3(pitch,yaw,roll),1-exp(-delta*8))
 			pitch = smooth_sticks.x
@@ -930,23 +953,29 @@ func _physics_process(delta: float) -> void:
 			roll = smooth_sticks.z
 		if not assessment and (beginner or (assisted and not use_radio)):
 			var local_up: float = maxf(0.35,drone.basis.y.dot(Vector3.UP))
-			var vertical_target := lift*3
+			var vertical_target: float = lift*(1.5 if basic else 3)
 			var cut_power := false
 			if use_radio:
 				cut_power = throttle<=0.10
-				vertical_target = 0 if absf(throttle-0.5)<0.06 else (throttle-0.5)*5
+				vertical_target = 0 if absf(throttle-0.5)<0.06 else (throttle-0.5)*(3 if basic else 5)
 			throttle = 0 if cut_power else clampf((mass*9.8+mass*(vertical_target-drone.linear_velocity.y)*3)/(mass*30*local_up),0,1)
-			var angle := 0.26 if beginner else 0.32
+			var angle := 0.0 if basic else 0.26 if beginner else 0.32
 			var target_basis := Basis(Vector3.UP,drone.rotation.y)*Basis.from_euler(Vector3(pitch*angle,0,-roll*angle))
 			var error_ := (target_basis*drone.basis.inverse()).get_rotation_quaternion()
-			drone.angular_velocity = error_.get_axis()*error_.get_angle()*4+Vector3.UP*yaw*(1.2 if beginner else 1.5)
-			if beginner and absf(roll)<0.08 and absf(pitch)<0.08:
+			drone.angular_velocity = error_.get_axis()*error_.get_angle()*4+Vector3.UP*yaw*deg_to_rad(current_yaw_rate())
+			if basic and not cut_power:
+				var heading := Basis(Vector3.UP,drone.rotation.y)
+				var wanted := (heading*Vector3(roll*basic_speed,0,pitch*basic_speed)).limit_length(basic_speed)
+				var horizontal := Vector3(drone.linear_velocity.x,0,drone.linear_velocity.z)
+				var motor_force := drone.basis.y*throttle*mass*30
+				drone.apply_central_force((wanted-horizontal)*mass*3-Vector3(motor_force.x,0,motor_force.z))
+			elif beginner and absf(roll)<0.08 and absf(pitch)<0.08:
 				drone.apply_central_force(-Vector3(drone.linear_velocity.x,0,drone.linear_velocity.z)*mass*1.6)
 		else:
 			if not use_radio: throttle = clampf(throttle+lift*delta*0.4,0,1)
-			drone.angular_velocity = drone.basis*Vector3(pitch,yaw,-roll)*deg_to_rad(rates)
+			drone.angular_velocity = drone.basis*Vector3(pitch*deg_to_rad(rates),yaw*deg_to_rad(current_yaw_rate()),-roll*deg_to_rad(rates))
 		drone.apply_central_force(drone.basis.y*throttle*mass*30)
-		if not assessment: drone.apply_central_force(Vector3(wind,0,wind*0.25)*mass*0.3)
+		if not assessment and not basic: drone.apply_central_force(Vector3(wind,0,wind*0.25)*mass*0.3)
 		impact_speed = drone.linear_velocity.length()
 		check_gate(previous_position,drone.position)
 		previous_position = drone.position
@@ -956,6 +985,7 @@ func _physics_process(delta: float) -> void:
 	if in_flight and not finished and assessment and elapsed>float(course.cutoff_seconds): finish_run("Disqualified: time limit")
 	update_flight_centre()
 	update_gate_labels()
+	guidance.update_guidance(delta)
 	if is_instance_valid(notice): notice.text = status
 	if is_instance_valid(launch_message) and not in_flight: launch_message.text = status
 	if is_instance_valid(remote_readout) and is_instance_valid(launch_dialog) and launch_dialog.visible: update_launch_readout()
@@ -963,9 +993,9 @@ func _physics_process(delta: float) -> void:
 		var data: Dictionary = course.gates[next_gate]
 		target_label.text = "%02d / %02d   %s    ·    LAP %d / %d" % [next_gate+1,course.gates.size(),data.name.to_upper(),lap,course.laps]
 		telemetry.text = "%s  %05.1fs     |     %02d km/h     |     ALT %.1fm     |     HDG %03d°     |     POWER %d%%     |     CRASH %d" % ["TIME" if started else "READY",elapsed,int(drone.linear_velocity.length()*3.6),drone.position.y,int(fposmod(-rad_to_deg(drone.rotation.y),360)),int(throttle*100),crashes]
-		flight_status.text = ("GOD MODE · " if not assessment and practice_god_mode else "CRASH MODE · ")+("ACRO ASSESSMENT" if assessment else "BEGINNER STABILIZED" if practice_stabilized else "ASSISTED PRACTICE" if assisted and not use_radio else "ACRO PRACTICE")+"    ·    Q/E or ←/→: turn    /    A/D: bank    /    Enter: pause    /    Esc: menu"+("    PAUSED" if not active else "")
+		flight_status.text = ("GOD MODE · " if not assessment and practice_god_mode else "CRASH MODE · ")+("ACRO ASSESSMENT" if assessment else "BASIC GUIDED" if practice_basic else "BEGINNER STABILIZED" if practice_stabilized else "ASSISTED PRACTICE" if assisted and not use_radio else "ACRO PRACTICE")+("    ·    Q/E: turn    /    A/D: sideways    /    Release: stop    /    Enter: pause    /    Esc: menu" if practice_basic and not assessment else "    ·    Q/E or ←/→: turn    /    A/D: bank    /    Enter: pause    /    Esc: menu")+("    PAUSED" if not active else "")
 		minimap.queue_redraw()
-		guide.visible = not finished
+		guide.visible = not finished and not (practice_basic and not assessment)
 		var center: Vector3 = O.sections(data)[section_index].center
 		var hole: Vector2 = O.holes(data)[0]
 		center += Vector3(hole.x,hole.y,0)
@@ -988,6 +1018,7 @@ func check_gate(from: Vector3, to: Vector3) -> void:
 		if not started: started = true; elapsed = 0
 		section_index += 1
 		if section_index == sections.size():
+			if is_instance_valid(guidance): guidance.gate_passed()
 			section_index = 0
 			next_gate += 1
 			if next_gate == gates.size():
@@ -1038,7 +1069,7 @@ func finish_run(reason: String) -> void:
 	var score := 100-20*crashes-int(maxf(0,elapsed-float(course.qualifying_seconds))/5)
 	var bonus: float = course.get("bonus_seconds_per_point",0) if course.get("bonus_seconds_per_point") != null else 0
 	if bonus>0: score += int(maxf(0,float(course.qualifying_seconds)-elapsed)/bonus)
-	var result := {"timestamp":Time.get_datetime_string_from_system(),"pilot":trainee if not trainee.is_empty() else "Guest","mode":"Assessment" if assessment else "Practice","result":reason,"seconds":snappedf(elapsed,0.01),"crashes":crashes,"contacts":contacts,"score":maxi(0,score) if assessment and reason=="Course completed" else 0 if assessment else "Practice","course":course.name,"drone_size":SIZES.LABELS[drone_category],"span_metres":drone_span,"input":"Remote" if use_radio else "Keyboard","control_mode":"Acro" if assessment else "Beginner Stabilized" if practice_stabilized else "Acro" if use_radio else "Keyboard Assist" if assisted else "Acro","collision_mode":"Assessment" if assessment else "God Mode" if practice_god_mode else "Crash Mode"}
+	var result := {"timestamp":Time.get_datetime_string_from_system(),"pilot":trainee if not trainee.is_empty() else "Guest","mode":"Assessment" if assessment else "Practice","result":reason,"seconds":snappedf(elapsed,0.01),"crashes":crashes,"contacts":contacts,"score":maxi(0,score) if assessment and reason=="Course completed" else 0 if assessment else "Practice","course":course.name,"drone_size":SIZES.LABELS[drone_category],"span_metres":drone_span,"input":"Remote" if use_radio else "Keyboard","control_mode":"Acro" if assessment else "Basic Guided" if practice_basic else "Beginner Stabilized" if practice_stabilized else "Acro" if use_radio else "Keyboard Assist" if assisted else "Acro","yaw_rate_deg":current_yaw_rate(),"collision_mode":"Assessment" if assessment else "God Mode" if practice_god_mode else "Crash Mode"}
 	var f := FileAccess.open(RESULTS_PATH,FileAccess.READ_WRITE if FileAccess.file_exists(RESULTS_PATH) else FileAccess.WRITE)
 	if f:
 		f.seek_end()
@@ -1413,7 +1444,7 @@ func show_splash() -> void:
 	splash_progress.add_theme_stylebox_override("background",style("1c3e33",2,0))
 	splash_progress.add_theme_stylebox_override("fill",style("79e5c2",2,0))
 	column.add_child(splash_progress)
-	var footer := label_("OFFLINE FLIGHT SIMULATOR   /   VERSION 0.6",12,"79988c")
+	var footer := label_("OFFLINE FLIGHT SIMULATOR   /   VERSION 0.7",12,"79988c")
 	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(footer)
 
@@ -1442,6 +1473,10 @@ func add_editor_map() -> void:
 	content.add_child(editor_map)
 
 func build_impact_interface() -> void:
+	var aim := GUIDANCE_HUD.new()
+	aim.host = self
+	aim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(aim)
 	impact_overlay = ColorRect.new()
 	impact_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	impact_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1498,7 +1533,7 @@ func update_remote_arming(delta: float) -> void:
 	throttle = 0
 	previous_position = drone.position
 	last_launch_action = "Remote motors armed after stable low throttle"
-	status = "REMOTE ARMED — raise throttle gently. "+("GOD MODE" if not assessment and practice_god_mode else "CRASH MODE")
+	status = "BASIC REMOTE ARMED — above halfway climbs; near halfway holds height." if practice_basic and not assessment else "REMOTE ARMED — raise throttle gently. "+("GOD MODE" if not assessment and practice_god_mode else "CRASH MODE")
 
 func update_crash_state(delta: float) -> void:
 	if crash_phase.is_empty() or not active: return
@@ -1512,7 +1547,7 @@ func respawn_checkpoint() -> void:
 	var gate := gates[next_gate]
 	var entry: Vector3 = O.sections(data)[0].center
 	var position_: Vector3 = gate.to_global(entry+Vector3(0,0,3+SIZES.radius(drone_span)))
-	if use_radio or assessment or (not assisted and not practice_stabilized): position_.y = SIZES.radius(drone_span)+0.06
+	if use_radio or assessment or (not assisted and not practice_stabilized and not practice_basic): position_.y = SIZES.radius(drone_span)+0.06
 	else: position_.y = maxf(position_.y,SIZES.radius(drone_span)+0.3)
 	drone.freeze = true
 	drone.call("request_reset",Transform3D(Basis(Vector3.UP,deg_to_rad(float(data.yaw_degrees))),position_))
@@ -1569,7 +1604,7 @@ func launch_from_popup() -> void:
 	launch_remote()
 
 func remote_report() -> String:
-	var rows := PackedStringArray([APP_TITLE+" v0.6 REMOTE REPORT","Device: "+(controller.device_name(joystick) if joystick>=0 else "NOT CONNECTED"),"Setup issue: "+remote_configuration_issue(),"State: in_flight=%s active=%s waiting_low=%s" % [in_flight,active,remote_waiting_low],"Last action: "+last_launch_action])
+	var rows := PackedStringArray([APP_TITLE+" v0.7 REMOTE REPORT","Device: "+(controller.device_name(joystick) if joystick>=0 else "NOT CONNECTED"),"Setup issue: "+remote_configuration_issue(),"State: in_flight=%s active=%s waiting_low=%s" % [in_flight,active,remote_waiting_low],"Last action: "+last_launch_action])
 	for i in range(4):
 		rows.append("%s axis=%d raw=%+.3f scaled=%+.3f inverted=%s endpoints=%s centre=%.3f" % [["Roll","Pitch","Yaw","Throttle"][i],axes[i],controller.axis(joystick,axes[i]) if joystick>=0 else 0,radio_axis(i),inversions[i],str(endpoints[i]),centers[i]])
 	return "\n".join(rows)
@@ -1579,13 +1614,13 @@ func copy_remote_report() -> void:
 	status = "Remote report copied. Paste it into chat if launch still fails."
 
 func open_browser_radio_test() -> void:
-	var file := FileAccess.open("user://RadioTest-v0.6.html",FileAccess.WRITE)
+	var file := FileAccess.open("user://RadioTest-v0.7.html",FileAccess.WRITE)
 	if not file:
 		status = "Cannot create browser test page. Open RADIO-TEST.html beside the executable."
 		return
 	file.store_string(FileAccess.get_file_as_string("res://data/radio-test.html"))
 	file.close()
-	OS.shell_open(ProjectSettings.globalize_path("user://RadioTest-v0.6.html"))
+	OS.shell_open(ProjectSettings.globalize_path("user://RadioTest-v0.7.html"))
 
 func apply_visibility() -> void:
 	if not is_instance_valid(gate_root): return
@@ -1605,3 +1640,15 @@ func update_gate_labels() -> void:
 	for i in range(gate_labels.size()):
 		for sign_ in gate_labels[i]:
 			if is_instance_valid(sign_): sign_.visible = not in_flight or ((show_all_labels or i==next_gate) and sign_.global_position.distance_to(camera.global_position)>2.5)
+
+func current_yaw_rate() -> float:
+	if assessment: return rates
+	return yaw_rate*0.8 if practice_basic else yaw_rate
+
+func select_flight_mode(index: int) -> void:
+	launch_assessment = index==1
+	practice_stabilized = index==2
+	practice_basic = index==3
+	if practice_basic: practice_god_mode = true
+	save_settings()
+	show_module.call_deferred("Fly")
