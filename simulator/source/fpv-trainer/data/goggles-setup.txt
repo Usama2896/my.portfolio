@@ -1,0 +1,24 @@
+AL JEHAD FPV — GOGGLES / EXTERNAL VIDEO
+
+1. First test on your normal monitor. Keep a keyboard available.
+2. Check the exact Skyzone Cobra model and its manual for VIDEO INPUT.
+   A USB socket may be power or firmware only; it does not necessarily accept PC video.
+3. If your goggles have AV IN, a PC normally needs an ACTIVE HDMI-to-composite
+   AV converter (HDMI INPUT, composite OUTPUT), power for that converter, and
+   the correct Skyzone-compatible AV cable. A passive HDMI cable will not do.
+   Check PAL/NTSC support, pinout and voltage in both device manuals before buying.
+4. Connect the PC video output to the converter, then its composite output to
+   goggles AV IN. Select AV input on the goggles. Follow their manual.
+   If your exact model supports HDMI IN, use its documented HDMI input instead.
+5. On Windows press Win+P and choose Duplicate. Start the simulator, open
+   Drone & Controls and enable Goggles display mode. It makes the app fullscreen;
+   it does not detect, pair with or wirelessly transmit to goggles.
+6. V toggles the moving attitude reference. F11 exits fullscreen. Esc opens menu.
+7. Analogue video reduces text clarity and may add delay. Test comfortably on
+   the ground first. This is the same single FPV camera image, not stereo VR.
+
+USB RadioMaster input and goggles video are separate connections. No radio
+vibration is guaranteed: most transmitter USB joystick modes do not provide
+rumble. The optional vibration setting only requests supported gamepad rumble.
+
+Exact Cobra video hardware has not been physically tested in the cloud.

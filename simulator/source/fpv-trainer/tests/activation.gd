@@ -1,0 +1,28 @@
+extends SceneTree
+class OtherPC extends "res://activation.gd":
+	func machine_id() -> String: return "a-different-computer"
+func _initialize() -> void: call_deferred("run")
+func run() -> void:
+	var license_ = load("res://activation.gd").new()
+	if FileAccess.file_exists(license_.PATH): DirAccess.remove_absolute(ProjectSettings.globalize_path(license_.PATH))
+	assert(not license_.is_active())
+	var app = load("res://main.tscn").instantiate()
+	root.add_child(app)
+	app.set_physics_process(false)
+	assert(not app.start_flight(false))
+	assert(not license_.activate("wrong"))
+	assert(license_.activate("TWP29"))
+	assert(license_.is_active())
+	assert(load("res://activation.gd").new().is_active())
+	assert(not OtherPC.new().is_active())
+	var owner = load("res://owner_settings.gd")
+	assert(owner.SPLASH_SECONDS==5 and owner.START_FULLSCREEN and owner.GOD_MODE_LABEL=="god Mode")
+	assert(app.start_flight(false))
+	app.show_splash()
+	app.update_splash(2)
+	assert(app.splash_remaining==3)
+	app.update_splash(3)
+	assert(app.splash_remaining==0)
+	app.leave_flight()
+	print("PASS: 11 activation, flight gate, restart, machine binding and owner-setting checks")
+	quit()

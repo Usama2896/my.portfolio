@@ -1,0 +1,202 @@
+AL JEHAD FPV OBSTACLE COURSE — VERSION 0.7
+BEGINNER GUIDE: USB, REMOTE, KEYBOARD AND CUSTOMIZATION
+
+A. COPY AND OPEN THE NEW VERSION
+1. Download the latest Windows ZIP. Copy the ZIP onto your USB drive.
+2. On the gaming PC, copy the ZIP from USB to the Desktop.
+3. Right-click the ZIP, choose Extract All, then Extract.
+4. Open the AL-JEHAD-FPV folder. Double-click AlJehadFPV.exe.
+Keep all files together. A shortcut alone does not contain the simulator.
+5. The AL JEHAD opening screen appears for about two seconds, then the menu opens. Check that the screen says V0.7 so you know you opened the new version.
+No VS Code, Godot, Steam or Internet is needed to run it.
+
+B. THE TWO FLIGHT BUTTONS
+6. Pilot name is an optional text field; Guest is simply the default name.
+7. Choose ordinary Practice, Beginner Stabilized, Basic Guided, or Acro Assessment from Flight mode.
+8. Fly with Keyboard ALWAYS selects the keyboard, even if a radio is plugged in or USB was enabled in an older version.
+9. Fly with Remote ALWAYS selects the remote. There is no separate USB-enable switch anymore.
+Keyboard auto-level is a practice aid; it is not an input-enable switch.
+
+C. CONNECT YOUR RADIOMASTER
+10. Turn on your Pocket or TX16/TX16S. Use a USB cable that carries DATA. A charging-only cable will not work.
+11. Use the radio's USB/data port. Port location varies by model; some have a separate charge-only port.
+12. If the radio asks for a USB mode, choose USB Joystick / HID. Do not choose storage, SD card or serial mode.
+13. If needed, check Windows: press Windows key + R, type joy.cpl, press Enter. Select the radio, open Properties, and check that its stick indicators move. Close that window afterward.
+If it is missing, try a data cable, another USB port, and check radio USB mode. Do not download random drivers.
+
+D. USE YOUR EXISTING CALIBRATION
+14. Open Drone & Controls. Select your radio from the USB CONTROLLER list, especially if several controllers are connected.
+15. The app keeps the older DTC Flight Lab data folder, so your saved calibration and courses should still load. Check the live values before changing them.
+16. If all four movements are mapped correctly, put throttle fully DOWN, return to Fly and click Fly with Remote.
+
+E. IF YOU NEED TO MAP THE STICKS AGAIN
+The usual Mode 2 arrangement is:
+    RIGHT stick left/right = ROLL (bank)
+    RIGHT stick up/down = PITCH (nose tilt)
+    LEFT stick left/right = YAW (turn in place)
+    LEFT stick up/down = THROTTLE (power)
+If your radio uses another stick mode, map the movements you actually use.
+17. Click Map roll. Move ONLY that stick movement fully both ways, return to centre, then Confirm axis travel & centre.
+18. Repeat Map pitch: fully forward/back, return to centre, Confirm.
+19. Repeat Map yaw: fully left/right, return to centre, Confirm.
+20. Repeat Map throttle: fully down/up, then put it fully DOWN before Confirm. The app uses this final DOWN position to detect throttle direction automatically. Do not confirm throttle halfway up.
+21. To abandon an unfinished mapping, click Cancel unfinished calibration. Previous confirmed mappings are restored.
+22. Check live numbers:
+    Roll: RIGHT +1, LEFT -1.
+    Pitch: FORWARD -1, BACK +1.
+    Yaw: RIGHT +1, LEFT -1.
+    Throttle: fully DOWN -1, fully UP +1.
+Use Invert beside the movement if its direction is wrong. Centred roll/pitch/yaw should be near 0. Raise dead zone slightly if they twitch near centre.
+
+F. NEW REMOTE START AND DIAGNOSTICS
+23. Fly with Remote opens the flight view when the radio and confirmed mappings are valid. Motors stay OFF while the screen says Lower throttle to arm.
+24. Put throttle fully DOWN and keep it there briefly (0.2 seconds). The message changes to REMOTE ARMED. Now raise throttle gently.
+25. Throttle down should read -1.00 / 0%. If it reads +1.00 / 100%, use Invert Throttle in the flight view. If its number does not change, use Open Controls to map throttle.
+26. A setup popup is only for missing/invalid configuration: no selected device, unfinished calibration, or duplicate channels. Its text explains the problem. Start Remote Flight becomes available when those setup issues are resolved; high throttle does not trap you on that menu anymore.
+27. The popup Start button was also checked with an actual OS mouse click in a rendered test. If it still fails on your PC, click Copy Report in that window, or Copy remote diagnostic report in Controls, and paste the result into chat. It includes the device, mapping, raw/scaled values and last launch state.
+28. There is no direct USB bridge from your laptop into the cloud chat. The tests below run on YOUR laptop, where the radio is physically plugged in.
+
+G. FIRST REMOTE FLIGHT
+29. Put throttle fully DOWN. Click Fly with Remote and wait for REMOTE ARMED.
+30. Ordinary remote Practice is Acro: it does NOT automatically level or hold height. Raise throttle slowly until it lifts, then use small inputs. Beginner/Basic assistance is explained below.
+31. To turn in place, keep the RIGHT stick centred and gently move the LEFT stick sideways. This is yaw. Turning does not brake motion if the drone is already moving.
+32. Enter pauses, R restarts, Esc opens the menu, F11 toggles full screen. Lower throttle before resuming. Restarting opens a disarmed flight view first.
+A connection change pauses remote flight. Reconnect, check the device and throttle, then restart.
+
+H. KEYBOARD FLIGHT
+Click Fly with Keyboard and leave Flight mode on Practice.
+Up/Down: climb/descend; release to hold height with assistance enabled.
+W/S: tilt forward/back. A/D: bank left/right.
+Q or Left arrow: turn LEFT, counterclockwise from above.
+E or Right arrow: turn RIGHT, clockwise from above.
+The HDG number changes when you turn. The FPV camera turns with the drone; there is no separate camera gimbal.
+
+I. MOVE EACH ZIG ZAG POLE
+Open Course Editor and select the Zig Zag station.
+Choose Pole 1, 2, 3, 4 or 5. The selected pole becomes orange.
+Pole X moves that pole left/right. Pole Z moves it forward/back.
+You can also drag its orange P1/P2/P3/P4/P5 point on the map.
+These are positions relative to the station; moving/rotating the whole station moves its poles together.
+Reset five poles to a straight line clears individual offsets.
+Click Save course locally to keep the layout.
+
+J. MOVE AND ROTATE OBSTACLES
+Select a station. X is left/right; Z is forward/back; Y is height.
+Yaw turns it around; Pitch tilts it forward/back; Roll tilts it sideways.
+The fields accept a full turn, up to 360 degrees in either direction. Rotation does not change its shape.
+Rotate whole course turns the entire layout around the first station; shapes and gaps stay unchanged.
+For a nearly vertical station, use Pole X/Z fields instead of top-down pole dragging.
+
+K. DRONE SIZE AND SPACING
+Drone & Controls offers 2.5, 5, 7, 10, 13 and 16–17-inch categories.
+The inch label is propeller size, not the entire drone's width. The preset overall spans are approximate; enter your measured full span if known.
+Size changes the conservative spherical collision envelope and gate clearance. It does not automatically create a calibrated motor, mass or flight model.
+Course Editor: choose station 02 or later and change Gap from previous (m). Move later stations together keeps the rest of the route together.
+Whole-course spacing expands/contracts all station positions without resizing obstacles. Distances are horizontal entry-centre to entry-centre, not empty edge clearance.
+Zig Zag Depth is the total length of its pole line. 1 metre is about 3.28 feet.
+Save course locally when finished. Export course.json to back up a custom layout before restoring the supplied course.
+
+L. TROUBLESHOOTING AND LIMITS
+Old controls/menu still visible: close the old app and open AlJehadFPV.exe from the newly extracted V0.7 folder.
+Slow frame rate: switch shadows OFF in Drone & Controls.
+Windows warning: note the exact wording; do not disable protection.
+Saved files remain in %APPDATA%/Godot/app_userdata/DTC Flight Lab/ to preserve your previous calibration and courses.
+This is a development release. New launch behavior has been checked with injected USB reports and cloud physics tests; it still needs a physical TX16/Pocket retest on Windows.
+
+M. CRASH MODE AND GOD MODE
+On the Fly screen, choose Practice, then select the collision mode.
+Crash Mode: a hard hit cuts the motors and lets the drone bounce/tumble, with a short screen flash, camera shake and impact sound. After about a second it restarts near the CURRENT obstacle. If gates 1 and 2 are complete and you crash at gate 3, you retry gate 3. Earlier gates, lap progress and elapsed time stay recorded. A tunnel restarts from its first section.
+After a remote crash, lower throttle again to re-arm before raising it.
+God Mode: the drone still bumps physical objects, but contacts do not count as crashes, cut motors or automatically reset you. It does not let you fly through solid objects.
+Light touches give feedback without a hard-crash penalty in either practice mode.
+Acro Assessment always uses crash rules: first crash costs 20 points; the second ends the assessment after the impact animation. God Mode cannot bypass assessment penalties.
+
+N. OFFLINE RADIO TEST IN YOUR BROWSER
+Open RADIO-TEST.html beside AlJehadFPV.exe. It should open in Edge or Chrome.
+Click Activate controller test, then move a stick. Keep the page focused initially.
+Select the radio if more than one device is listed. The A0/A1/etc bars show raw axes and observed travel. Browser axis order may differ from the game.
+You can keep the page beside the simulator or use Alt+Tab between them.
+Click Copy report and paste it in chat. No report is uploaded automatically.
+The same page opens from Controls > Open offline browser Radio Test.
+If your browser restricts gamepads on local files, use the app's Copy remote diagnostic report instead. You do not need to install drivers just to try this page.
+This page is a controller diagnostic, not a browser version of the simulator, and does not give the cloud assistant direct access to your USB device.
+
+O. NEW UPWARD U-TUNNEL (V0.7)
+The old U-tunnel is replaced using the supplied photograph.
+Enter through the horizontal mouth, follow the covered tube, then climb around
+the bend and leave through the OPEN TOP. Follow the target points as they rise.
+Flying straight ahead cannot finish it. The net sides are physical walls.
+The editor's existing width, opening height, depth, position and rotation fields
+still work. Existing saved U-tunnel stations update automatically; no reset needed.
+Dimensions are approximate, so adjust them to your measured course if available.
+
+P. CLEARER VISIBILITY
+Open Drone & Controls. High-visibility obstacles is on by default.
+If objects look too small, click Closer view (FOV 80). Lower FOV makes things
+look larger without changing their physical size. You can change FOV manually.
+Only the current obstacle's labels show in flight by default, and labels hide
+when too close to the camera. Turn on Show all labels during flight if wanted.
+High visibility can also be turned off. These settings save automatically.
+
+Q. OPTIONAL BEGINNER STABILITY
+On Fly, choose Beginner Stabilized Practice in Flight mode. Then choose Keyboard
+or Remote using the same two buttons. Existing ordinary remote Practice is still
+Acro. Assessment is always Acro; beginner assistance cannot change its rules.
+Beginner mode smooths steering, limits tilt, levels the drone when sticks are
+released, and gently slows horizontal drift when pitch/roll are centred.
+With a REMOTE: arm at low throttle as usual. Raise throttle above halfway to
+climb; bring it near halfway to hold height. Below halfway descends; fully down
+cuts the motors. Keep the right stick centred when you want to stop tilting.
+With a KEYBOARD: Up/Down climb/descend; release to hold height. Other keys stay
+the same. This is a learning aid, not an exact copy of a commercial flight model.
+
+R. FASTER YAW WITHOUT CHANGING PITCH/ROLL
+Drone & Controls > Yaw speed controls how fast the drone turns left/right.
+The practice default is now 180 degrees per second; raise it for quicker turns,
+or lower it if too sharp. Basic uses 80% of this setting. Pitch/roll is separate.
+Acro Assessment keeps its original Acro rate. No remapping of the yaw stick is
+needed if your existing calibration/direction was correct.
+
+S. BASIC GUIDED PRACTICE — THE EASIEST LEVEL
+On Fly choose Basic Guided Practice — easiest, then Keyboard or Remote.
+This is a separate practice level, not a replacement for Beginner Stabilized.
+God Mode is selected initially so bumps do not cause a crash/reset. You can
+choose Crash Mode if you want to practise recovery later.
+Basic holds a level horizon. Movement is slow and calm. Release keys or centre
+pitch/roll sticks to brake and stop instead of keeping a difficult bank angle.
+Keyboard: W/S forward/back, A/D sideways, Q/E or Left/Right turn, Up/Down height.
+Remote Mode 2: right stick forward/back/sideways, left stick sideways turns.
+Remote throttle: low to arm; above halfway climbs; near halfway holds height;
+below halfway descends; fully low cuts the motors. Keyboard starts in a hover.
+Basic speed in Drone & Controls adjusts travel speed; the default is 1.8 m/s.
+Basic ignores the practice wind setting so learning stays calm.
+
+FOLLOW THE MARKERS
+The + in the centre is your aim reference. The outlined +/circle marks the next
+opening. Line them up while approaching. Green/centred feedback helps you aim.
+A cyan drone moves along the dotted route ahead. It shows the way; YOU still fly
+your own drone. It is not autopilot and cannot count gates for you.
+Near the camera, the ghost and big world markers hide to keep your view clear.
+The small screen aiming marker remains. The guide follows the upward U-tunnel.
+If the target is off screen, an arrow says which way to turn or climb/descend.
+If you approach from the wrong side, it points back toward the correct entry.
+GATE CLEAR appears when a full obstacle is actually passed in the right order.
+If it says the opening is too small, select a smaller drone span or widen the
+obstacle in the editor. Guidance does not secretly change collision geometry.
+Assessment always stays Acro and has no Basic guide or movement assistance.
+
+VERSION 0.8 UPDATE
+Choose Easy, Medium, Hard or Assessment in the reordered flight selector.
+V toggles the moving attitude reference in every level.
+Drone & Controls > Environment & Flight Options contains weather, wind,
+battery duration, ground route, rumble and goggles fullscreen settings.
+Battery defaults to six active-flight minutes. R restarts with a fresh battery.
+Read GOGGLES-SETUP.txt before connecting Skyzone video hardware.
+RadioMaster USB input does not guarantee rumble or carry video to goggles.
+
+VERSION 0.8.1 — SAVED CALIBRATION
+Your last confirmed calibration loads automatically for the same radio on this
+Windows account. You do not need to map the sticks before every flight.
+Use Map and Confirm only when you want to change a mapping.
+Lowering throttle to arm is still required; it is not recalibration.
+A different PC or Windows account needs its own initial calibration.
