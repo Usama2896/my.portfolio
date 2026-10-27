@@ -1,0 +1,45 @@
+name: Build FPV Windows ZIP
+on:
+  push:
+    paths:
+      - 'simulator/source/fpv-trainer/**'
+      - 'simulator/tools/**'
+      - 'simulator/*.txt'
+      - 'simulator/*.md'
+      - '.github/workflows/build-fpv-windows.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows-package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install verified Godot and Windows templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/godot-download"
+          cd "$RUNNER_TEMP/godot-download"
+          release=https://github.com/godotengine/godot/releases/download/4.6.3-stable
+          curl -fL --retry 3 "$release/Godot_v4.6.3-stable_linux.x86_64.zip" -o engine.zip
+          curl -fL --retry 3 "$release/Godot_v4.6.3-stable_export_templates.tpz" -o templates.tpz
+          echo 'a035258da32b77f966a5376f9fa29c30a6adde826a85ba918e1605bd1fc9823eba7d85f1dd5e748956bd2ba72827c0025ffa11bb82aec91128c407a2e723c99c  engine.zip' | sha512sum -c -
+          echo 'da606b61c10157844f8300172df374472665f95015495cb1a7cd132c40ede404faa96cc1016a4b9662db9909ddea69632c4948b2cd11163438dad4808881fb68  templates.tpz' | sha512sum -c -
+          unzip -q engine.zip
+          chmod +x Godot_v4.6.3-stable_linux.x86_64
+          echo "$RUNNER_TEMP/godot-download" >> "$GITHUB_PATH"
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.6.3.stable"
+          unzip -j -q templates.tpz 'templates/windows_release_x86_64.exe' 'templates/windows_debug_x86_64.exe' -d "$HOME/.local/share/godot/export_templates/4.6.3.stable"
+      - name: Export Windows app
+        run: |
+          Godot_v4.6.3-stable_linux.x86_64 --headless --path simulator/source/fpv-trainer --editor --import
+          Godot_v4.6.3-stable_linux.x86_64 --headless --path simulator/source/fpv-trainer --export-release 'Windows Desktop'
+      - name: Package app and instructions
+        run: python3 simulator/tools/package_windows.py --output dist/AL-JEHAD-FPV-Windows.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AL-JEHAD-FPV-Windows
+          path: dist/AL-JEHAD-FPV-Windows.zip
+          retention-days: 30

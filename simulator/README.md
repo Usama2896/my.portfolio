@@ -1,10 +1,14 @@
-# AL JEHAD FPV OBSTACLE COURSE — v0.8.1
+# AL JEHAD FPV OBSTACLE COURSE — v0.8.2
 
 [Download Windows ZIP](https://github.com/Usama2896/my.portfolio/raw/refs/heads/fpv-simulator-prototype/simulator/FPVTrainer-Windows-Prototype.zip)
 
-Close the old app, extract the ZIP into a new folder, then open **AL-JEHAD-FPV/AlJehadFPV.exe**. Check **V0.8.1**. No Godot, VS Code, installer or Internet is required to run it. Existing calibration, saved courses and records are retained.
+Close the old app, extract the ZIP into a new folder, then open **AL-JEHAD-FPV/AlJehadFPV.exe**. Check **V0.8.2**. No Godot, VS Code, installer or Internet is required to run it. Existing calibration, saved courses and records are retained.
 
-## Calibration memory — v0.8.1
+## Owner settings and activation — v0.8.2
+
+One-time per-PC/account activation, five-second splash, `god Mode` label and fullscreen startup. Ask the owner for the key. Existing calibration remains saved. [Step-by-step editing, online builds and technical explanation](EDITING-GUIDE.md). Edit `source/fpv-trainer/owner_settings.gd` and rebuild; saving source alone does not change an EXE. Public source means a hard-coded activation key is a casual-copy deterrent, not strong DRM.
+
+## Calibration memory — v0.8.2
 
 The same radio automatically restores its saved axis mapping, travel limits, centres and inversions. It reuses the last profile even when its USB device index or instance GUID changes, provided the radio name identifies one connected device. Exact device profiles take priority. Older matching profiles are imported without deleting calibration. With several identical radios, select the intended device and verify its live values; USB cannot reliably distinguish identical names without stable identifiers.
 

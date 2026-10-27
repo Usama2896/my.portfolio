@@ -1,4 +1,6 @@
 extends Node3D
+const OWNER = preload("res://owner_settings.gd")
+var license_memory = preload("res://activation.gd").new()
 const GUIDANCE = preload("res://guidance.gd")
 const GUIDANCE_HUD = preload("res://flight_guidance.gd")
 const BODY = preload("res://drone_body.gd")
@@ -157,7 +159,8 @@ func _ready() -> void:
 	build_impact_interface()
 	reset_run()
 	show_module("Fly")
-	if goggles_enabled and DisplayServer.get_name()!="headless": DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+	if (OWNER.START_FULLSCREEN or goggles_enabled) and DisplayServer.get_name()!="headless": DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+	if not license_memory.is_active(): show_activation()
 	if DisplayServer.get_name()!="headless": show_splash()
 	if "--capture" in OS.get_cmdline_user_args():
 		DisplayServer.window_set_size(Vector2i(1440,900))
@@ -347,7 +350,7 @@ func build_interface() -> void:
 	notice.offset_right = -20
 	notice.offset_top = -35
 	overlay.add_child(notice)
-	version_label = label_("OFFLINE  /  V0.8.1   •   APPROXIMATE COURSE",12,"e0ead7")
+	version_label = label_("OFFLINE  /  V0.8.2   •   APPROXIMATE COURSE",12,"e0ead7")
 	version_label.position = Vector2(450,96)
 	overlay.add_child(version_label)
 	hud = PanelContainer.new()
@@ -415,18 +418,18 @@ func fly_menu() -> void:
 	content.add_child(mode)
 	var collisions := OptionButton.new()
 	collisions.add_item("Crash Mode — impacts and checkpoint restart")
-	collisions.add_item("God Mode — bumps, no crashes or restart")
+	collisions.add_item(OWNER.GOD_MODE_LABEL+" — bumps, no crashes or restart")
 	collisions.select(1 if practice_god_mode else 0)
 	collisions.disabled = launch_assessment
 	collisions.item_selected.connect(func(i): practice_god_mode = i==1; save_settings())
 	content.add_child(collisions)
-	paragraph("Assessment always uses crash rules. Practice lets you choose Crash Mode or God Mode.")
+	paragraph("Assessment always uses crash rules. Practice lets you choose Crash Mode or god Mode.")
 	button_("Fly with Keyboard",launch_keyboard,null,true)
 	button_("Fly with Remote",launch_remote)
 	launch_message = label_("",14,"ffc98e")
 	launch_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	content.add_child(launch_message)
-	if practice_basic: paragraph("BASIC: follow the cyan guide drone and dotted route. Centre your diamond on the marked opening. Release movement sticks/keys to stop. God Mode is selected initially; you can choose Crash Mode.")
+	if practice_basic: paragraph("BASIC: follow the cyan guide drone and dotted route. Centre your diamond on the marked opening. Release movement sticks/keys to stop. god Mode is selected initially; you can choose Crash Mode.")
 	paragraph("The two buttons select the input automatically. No hidden USB switch is needed.")
 	paragraph("KEYBOARD PRACTICE\nAuto-level and height assistance. W/S tilt; A/D bank; Q/E or ←/→ turn. ↑/↓ climb and descend.")
 	paragraph("BEGINNER STABILIZED\nOptional auto-level, softer steering and braking with centred sticks. For remote height assistance, keep throttle near halfway to hold height; fully down still cuts motors.")
@@ -901,6 +904,9 @@ func reset_run() -> void:
 	contact_cooldown = 0.5
 
 func start_flight(scored: bool) -> bool:
+	if not license_memory.is_active():
+		status = "Activate this PC before flying."
+		return false
 	if splash_remaining>0: return false
 	if use_radio:
 		var reason := remote_configuration_issue()
@@ -1055,7 +1061,7 @@ func _physics_process(delta: float) -> void:
 		var data: Dictionary = course.gates[next_gate]
 		target_label.text = "%02d / %02d   %s    ·    LAP %d / %d" % [next_gate+1,course.gates.size(),data.name.to_upper(),lap,course.laps]
 		telemetry.text = "%s  %05.1fs     |     %02d km/h     |     ALT %.1fm     |     HDG %03d°     |     POWER %d%%     |     CRASH %d" % ["TIME" if started else "READY",elapsed,int(drone.linear_velocity.length()*3.6),drone.position.y,int(fposmod(-rad_to_deg(drone.rotation.y),360)),int(throttle*100),crashes]
-		flight_status.text = ("GOD MODE · " if not assessment and practice_god_mode else "CRASH MODE · ")+("ACRO ASSESSMENT" if assessment else "BASIC GUIDED" if practice_basic else "BEGINNER STABILIZED" if practice_stabilized else "ASSISTED PRACTICE" if assisted and not use_radio else "ACRO PRACTICE")+("    ·    Q/E: turn    /    A/D: sideways    /    Release: stop    /    Enter: pause    /    Esc: menu" if practice_basic and not assessment else "    ·    Q/E or ←/→: turn    /    A/D: bank    /    Enter: pause    /    Esc: menu")+("    PAUSED" if not active else "")
+		flight_status.text = (OWNER.GOD_MODE_LABEL+" · " if not assessment and practice_god_mode else "CRASH MODE · ")+("ACRO ASSESSMENT" if assessment else "BASIC GUIDED" if practice_basic else "BEGINNER STABILIZED" if practice_stabilized else "ASSISTED PRACTICE" if assisted and not use_radio else "ACRO PRACTICE")+("    ·    Q/E: turn    /    A/D: sideways    /    Release: stop    /    Enter: pause    /    Esc: menu" if practice_basic and not assessment else "    ·    Q/E or ←/→: turn    /    A/D: bank    /    Enter: pause    /    Esc: menu")+("    PAUSED" if not active else "")
 		telemetry.text += "   |   BAT %02d:%02d" % [int(experience.remaining())/60,int(experience.remaining())%60] if battery_enabled else "   |   BAT OFF"
 		minimap.queue_redraw()
 		guide.visible = not finished and not (practice_basic and not assessment)
@@ -1104,7 +1110,7 @@ func on_impact(strength: float, normal: Vector3) -> void:
 	play_impact_sound(strength)
 	experience.vibrate(strength)
 	if not assessment and practice_god_mode:
-		status = "GOD MODE — contact, no crash or reset."
+		status = "god Mode — contact, no crash or reset."
 		return
 	if strength<3.5:
 		status = "Light contact — physical bounce, no crash penalty."
@@ -1135,7 +1141,7 @@ func finish_run(reason: String) -> void:
 	var score := 100-20*crashes-int(maxf(0,elapsed-float(course.qualifying_seconds))/5)
 	var bonus: float = course.get("bonus_seconds_per_point",0) if course.get("bonus_seconds_per_point") != null else 0
 	if bonus>0: score += int(maxf(0,float(course.qualifying_seconds)-elapsed)/bonus)
-	var result := {"timestamp":Time.get_datetime_string_from_system(),"pilot":trainee if not trainee.is_empty() else "Guest","mode":"Assessment" if assessment else "Practice","result":reason,"seconds":snappedf(elapsed,0.01),"crashes":crashes,"contacts":contacts,"score":maxi(0,score) if assessment and reason=="Course completed" else 0 if assessment else "Practice","course":course.name,"drone_size":SIZES.LABELS[drone_category],"span_metres":drone_span,"input":"Remote" if use_radio else "Keyboard","control_mode":"Acro" if assessment else "Basic Guided" if practice_basic else "Beginner Stabilized" if practice_stabilized else "Acro" if use_radio else "Keyboard Assist" if assisted else "Acro","yaw_rate_deg":current_yaw_rate(),"collision_mode":"Assessment" if assessment else "God Mode" if practice_god_mode else "Crash Mode"}
+	var result := {"timestamp":Time.get_datetime_string_from_system(),"pilot":trainee if not trainee.is_empty() else "Guest","mode":"Assessment" if assessment else "Practice","result":reason,"seconds":snappedf(elapsed,0.01),"crashes":crashes,"contacts":contacts,"score":maxi(0,score) if assessment and reason=="Course completed" else 0 if assessment else "Practice","course":course.name,"drone_size":SIZES.LABELS[drone_category],"span_metres":drone_span,"input":"Remote" if use_radio else "Keyboard","control_mode":"Acro" if assessment else "Basic Guided" if practice_basic else "Beginner Stabilized" if practice_stabilized else "Acro" if use_radio else "Keyboard Assist" if assisted else "Acro","yaw_rate_deg":current_yaw_rate(),"collision_mode":"Assessment" if assessment else "god Mode" if practice_god_mode else "Crash Mode"}
 	var f := FileAccess.open(RESULTS_PATH,FileAccess.READ_WRITE if FileAccess.file_exists(RESULTS_PATH) else FileAccess.WRITE)
 	if f:
 		f.seek_end()
@@ -1480,7 +1486,7 @@ func rotate_course(value: float) -> bool:
 	return true
 
 func show_splash() -> void:
-	splash_remaining = 2.0
+	splash_remaining = OWNER.SPLASH_SECONDS
 	if is_instance_valid(splash_control): splash_control.get_parent().queue_free()
 	var layer := CanvasLayer.new()
 	layer.layer = 50
@@ -1516,14 +1522,14 @@ func show_splash() -> void:
 	splash_progress.add_theme_stylebox_override("background",style("1c3e33",2,0))
 	splash_progress.add_theme_stylebox_override("fill",style("79e5c2",2,0))
 	column.add_child(splash_progress)
-	var footer := label_("OFFLINE FLIGHT SIMULATOR   /   VERSION 0.8.1",12,"79988c")
+	var footer := label_("OFFLINE FLIGHT SIMULATOR   /   VERSION 0.8.2",12,"79988c")
 	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(footer)
 
 func update_splash(delta: float) -> void:
 	if splash_remaining<=0: return
 	splash_remaining = maxf(0,splash_remaining-delta)
-	if is_instance_valid(splash_progress): splash_progress.value = (1-splash_remaining/2)*100
+	if is_instance_valid(splash_progress): splash_progress.value = (1-splash_remaining/maxf(0.1,OWNER.SPLASH_SECONDS))*100
 	if splash_remaining<=0 and is_instance_valid(splash_control):
 		var layer := splash_control.get_parent()
 		layer.queue_free()
@@ -1745,7 +1751,7 @@ func experience_settings() -> void:
 	field("Gust strength",gust_strength,0,1,0.05,func(v): gust_strength = v; save_settings())
 	field("Scene brightness",scene_brightness,0.4,1.5,0.1,func(v): scene_brightness = v; experience.apply_weather(); save_settings())
 	paragraph("Easy cancels wind for learning. Assessment retains calm competition conditions. Hot/cold are visual presets; storm adds gusts, not a thermal model.")
-	for entry in [["Ground route and direction arrows","ground_route"],["Battery limit (all levels, including God Mode)","battery_enabled"],["Moving attitude reference — V to toggle","attitude_enabled"],["Contact vibration — supported gamepads only","vibration_enabled"],["Goggles display mode — fullscreen video output","goggles_enabled"]]:
+	for entry in [["Ground route and direction arrows","ground_route"],["Battery limit (all levels, including god Mode)","battery_enabled"],["Moving attitude reference — V to toggle","attitude_enabled"],["Contact vibration — supported gamepads only","vibration_enabled"],["Goggles display mode — fullscreen video output","goggles_enabled"]]:
 		var toggle := CheckButton.new()
 		toggle.text = entry[0]
 		toggle.button_pressed = get(entry[1])
@@ -1763,3 +1769,32 @@ func experience_settings() -> void:
 	content.add_child(screens)
 	field("Battery duration minutes",battery_minutes,0.5,30,0.5,func(v): battery_minutes = v; save_settings())
 	paragraph("Cobra goggles need a compatible video connection. USB radio is input only. In Windows use Win+P > Duplicate to send this screen to an external video adapter. No wireless transmission is created by this switch. See GOGGLES-SETUP.txt.")
+
+func show_activation() -> void:
+	var dialog := AcceptDialog.new()
+	dialog.title = "AL JEHAD FPV — Activate this PC"
+	dialog.exclusive = true
+	dialog.dialog_hide_on_ok = false
+	dialog.get_ok_button().text = "Activate"
+	var column := VBoxContainer.new()
+	column.custom_minimum_size = Vector2(500,150)
+	dialog.add_child(column)
+	var explanation := label_("One-time activation for this PC and Windows account.\nEnter the key supplied by the software owner.",17)
+	column.add_child(explanation)
+	var key := LineEdit.new()
+	key.placeholder_text = "Activation key (no spaces)"
+	key.secret = true
+	column.add_child(key)
+	var message := label_("",15,"ffc98e")
+	column.add_child(message)
+	var submit := func():
+		if license_memory.activate(key.text):
+			status = "This PC is activated. Future launches do not need the key."
+			dialog.queue_free()
+		else: message.text = license_memory.error
+	dialog.confirmed.connect(submit)
+	key.text_submitted.connect(func(_text): submit.call())
+	dialog.canceled.connect(func(): get_tree().quit())
+	add_child(dialog)
+	dialog.popup_centered()
+	key.grab_focus()
