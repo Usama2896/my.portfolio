@@ -1,5 +1,8 @@
 extends Node3D
 const OWNER = preload("res://owner_settings.gd")
+var missions: Node3D
+var pause_dialog: AcceptDialog
+var pause_was_active := false
 var lan: Node3D
 var solo_world_nodes: Array[Node] = []
 var license_memory = preload("res://activation.gd").new()
@@ -158,6 +161,9 @@ func _ready() -> void:
 	lan = preload("res://lan_competition.gd").new()
 	lan.host = self
 	add_child(lan)
+	missions = preload("res://civilian_missions.gd").new()
+	missions.host = self
+	add_child(missions)
 	build_interface()
 	var attitude = preload("res://attitude.gd").new()
 	attitude.host = self
@@ -333,8 +339,9 @@ func build_interface() -> void:
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top_row.add_child(spacer)
-	for name_ in ["Fly","Course Editor","Drone & Controls","Training Results","LAN Competition"]:
+	for name_ in ["Fly","Course Editor","Drone & Controls","Training Results","LAN Competition","Civilian Missions"]:
 		button_(name_,func(): navigate_module(name_),top_row)
+	button_("Menu / Exit",open_escape_menu,top_row)
 	menu = PanelContainer.new()
 	menu.position = Vector2(20,94)
 	menu.set_anchors_and_offsets_preset(Control.PRESET_LEFT_WIDE)
@@ -357,7 +364,7 @@ func build_interface() -> void:
 	notice.offset_right = -20
 	notice.offset_top = -35
 	overlay.add_child(notice)
-	version_label = label_("OFFLINE  /  V0.9   •   APPROXIMATE COURSE",12,"e0ead7")
+	version_label = label_("OFFLINE  /  V0.10   •   APPROXIMATE COURSE",12,"e0ead7")
 	version_label.position = Vector2(450,96)
 	overlay.add_child(version_label)
 	hud = PanelContainer.new()
@@ -404,10 +411,12 @@ func show_module(name_: String) -> void:
 		"Drone & Controls": controls_menu()
 		"Training Results": results_menu()
 		"LAN Competition": lan.menu()
+		"Civilian Missions": missions.menu()
 
 func fly_menu() -> void:
 	content.add_child(label_("Choose how\nyou fly.",36,"f3f1dd"))
-	paragraph("AL JEHAD FPV OBSTACLE COURSE")
+	paragraph("FPV EVENTS — obstacle course and LAN relay")
+	button_("Civilian Camera Drone — delivery & landing",func(): navigate_module("Civilian Missions"))
 	content.add_child(label_("%02d STATIONS     %d LAPS" % [course.gates.size(),course.laps],13,"79e5c2"))
 	content.add_child(label_("Pilot name (optional)",13,"a9beb6"))
 	var pilot := LineEdit.new()
@@ -793,7 +802,7 @@ func load_radio() -> void:
 func save_settings() -> bool:
 	var cfg := ConfigFile.new()
 	cfg.load(PROFILE_PATH)
-	for key in ["fov","rates","mass","wind","assisted","use_radio","deadzone","trainee","motor_sound","shadows","drone_category","drone_span","preferred_radio_guid","preferred_radio_name","practice_god_mode","high_visibility","show_all_labels","practice_stabilized","practice_basic","yaw_rate","basic_speed","weather","wind_direction","gust_strength","scene_brightness","ground_route","battery_enabled","battery_minutes","attitude_enabled","vibration_enabled","goggles_enabled"]: cfg.set_value("flight",key,lan.backup[key] if is_instance_valid(lan) and lan.connected and lan.backup.has(key) else get(key))
+	for key in ["fov","rates","mass","wind","assisted","use_radio","deadzone","trainee","motor_sound","shadows","drone_category","drone_span","preferred_radio_guid","preferred_radio_name","practice_god_mode","high_visibility","show_all_labels","practice_stabilized","practice_basic","yaw_rate","basic_speed","weather","wind_direction","gust_strength","scene_brightness","ground_route","battery_enabled","battery_minutes","attitude_enabled","vibration_enabled","goggles_enabled"]: cfg.set_value("flight",key,missions.backup[key] if is_instance_valid(missions) and missions.running and missions.backup.has(key) else lan.backup[key] if is_instance_valid(lan) and lan.connected and lan.backup.has(key) else get(key))
 	if joystick>=0:
 		var stored_axes: Array = calibration_snapshot.axes if calibrating>=0 and not calibration_snapshot.is_empty() else axes
 		var stored_ranges: Array = calibration_snapshot.endpoints if calibrating>=0 and not calibration_snapshot.is_empty() else endpoints
@@ -862,7 +871,7 @@ func export_results() -> void:
 	dialog.file_selected.connect(func(path):
 		var file := FileAccess.open(path,FileAccess.WRITE)
 		if file:
-			var keys := PackedStringArray(["timestamp","pilot","mode","result","seconds","crashes","contacts","score","course","input","drone_size","span_metres","collision_mode","control_mode","yaw_rate_deg"])
+			var keys := PackedStringArray(["timestamp","pilot","mode","result","seconds","crashes","contacts","score","course","input","drone_size","span_metres","collision_mode","control_mode","yaw_rate_deg","pad_offset_m","descent_mps"])
 			file.store_csv_line(keys)
 			for d in read_results():
 				var values := PackedStringArray()
@@ -964,13 +973,22 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		save_settings()
 	if event.keycode == KEY_F11:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if DisplayServer.window_get_mode()==DisplayServer.WINDOW_MODE_FULLSCREEN else DisplayServer.WINDOW_MODE_FULLSCREEN)
-	if is_instance_valid(lan) and lan.connected and event.keycode in [KEY_ESCAPE,KEY_ENTER,KEY_R]:
-		if event.keycode==KEY_ESCAPE: lan.disconnect_room()
-		else: status = "LAN round uses host timing. Local pause/restart is disabled."
+	if event.keycode==KEY_ESCAPE:
+		open_escape_menu()
 		return
-	if event.keycode == KEY_ESCAPE:
-		leave_flight()
-		show_module("Fly")
+	if is_instance_valid(missions) and missions.running and event.keycode==KEY_U:
+		missions.unload()
+		return
+	if is_instance_valid(lan) and lan.connected:
+		if event.keycode in [KEY_0,KEY_1,KEY_2,KEY_3]:
+			lan.spectated_slot = int(event.keycode-KEY_1) if event.keycode!=KEY_0 else -1
+			return
+		if event.keycode in [KEY_ENTER,KEY_R]:
+			status = "LAN round uses host timing. Local pause/restart is disabled."
+			return
+	if is_instance_valid(missions) and missions.running and event.keycode==KEY_R:
+		status = "Use Menu > Main menu to start another civilian mission."
+		return
 	if not in_flight: return
 	if event.keycode == KEY_R: start_flight(assessment)
 	if event.keycode == KEY_ENTER and not finished:
@@ -992,7 +1010,7 @@ func _physics_process(delta: float) -> void:
 	update_feedback(delta)
 	update_remote_arming(delta)
 	if is_instance_valid(experience): experience.tick(delta)
-	if started and in_flight and not finished and (active or remote_waiting_low): elapsed += delta
+	if started and in_flight and not finished and not pause_open() and (active or remote_waiting_low): elapsed += delta
 	update_crash_state(delta)
 	if calibrating>=0 and joystick>=0:
 		if calibration_step==0:
@@ -1060,7 +1078,7 @@ func _physics_process(delta: float) -> void:
 		check_gate(previous_position,drone.position)
 		previous_position = drone.position
 
-		if drone.position.y < -3 or drone.position.y>(500 if lan.connected else 80) or absf(drone.position.x)>(20000 if lan.connected else 100) or absf(drone.position.z)>(20000 if lan.connected else 100):
+		if drone.position.y < -3 or drone.position.y>(500 if lan.connected else 80) or absf(drone.position.x)>(1000 if missions.running else 20000 if lan.connected else 100) or absf(drone.position.z)>(1000 if missions.running else 20000 if lan.connected else 100):
 			finish_run("Outside training area")
 	if in_flight and not finished and assessment and elapsed>float(course.cutoff_seconds): finish_run("Disqualified: time limit")
 	update_flight_centre()
@@ -1084,7 +1102,7 @@ func _physics_process(delta: float) -> void:
 	else: guide.visible = false
 
 func check_gate(from: Vector3, to: Vector3) -> void:
-	if is_instance_valid(lan) and lan.connected and lan.prepared: return
+	if (is_instance_valid(lan) and lan.connected and lan.prepared) or (is_instance_valid(missions) and missions.running): return
 	if finished or not crash_phase.is_empty() or remote_waiting_low: return
 	var gate := gates[next_gate]
 	var data: Dictionary = course.gates[next_gate]
@@ -1122,6 +1140,9 @@ func on_impact(strength: float, normal: Vector3) -> void:
 	shake_strength = clampf(strength*0.012,0.02,0.10)
 	play_impact_sound(strength)
 	experience.vibrate(strength)
+	if is_instance_valid(missions) and missions.running:
+		if strength>=3.5: missions.fail("Flight ended after a hard impact. Try a gentler approach.")
+		return
 	if is_instance_valid(lan) and lan.connected and lan.prepared:
 		if strength>=3.5: lan.notify_event("Crash")
 		return
@@ -1147,6 +1168,9 @@ func on_impact(strength: float, normal: Vector3) -> void:
 	if assessment and crashes==1: status += " First-crash penalty: −20."
 
 func finish_run(reason: String) -> void:
+	if is_instance_valid(missions) and missions.running:
+		missions.fail(reason)
+		return
 	if is_instance_valid(lan) and lan.connected and lan.prepared:
 		lan.notify_event(reason)
 		return
@@ -1542,7 +1566,7 @@ func show_splash() -> void:
 	splash_progress.add_theme_stylebox_override("background",style("1c3e33",2,0))
 	splash_progress.add_theme_stylebox_override("fill",style("79e5c2",2,0))
 	column.add_child(splash_progress)
-	var footer := label_("OFFLINE FLIGHT SIMULATOR   /   VERSION 0.9",12,"79988c")
+	var footer := label_("OFFLINE FLIGHT SIMULATOR   /   VERSION 0.10",12,"79988c")
 	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(footer)
 
@@ -1615,6 +1639,7 @@ func update_flight_centre() -> void:
 	else: centre_label.text = "CRASH — MOTORS CUT\nImpact and recovery… %.1fs\n\n%s" % [maxf(0,crash_timer),"Assessment ends after this impact." if not crash_terminal.is_empty() else "Restarting at station %02d: %s. Earlier gates stay complete." % [next_gate+1,course.gates[next_gate].name]]
 
 func update_remote_arming(delta: float) -> void:
+	if pause_open() and not (is_instance_valid(lan) and lan.connected): return
 	if not in_flight or finished or not remote_waiting_low or not crash_phase.is_empty(): return
 	if joystick<0 or not remote_configuration_issue().is_empty():
 		low_throttle_time = 0
@@ -1820,6 +1845,7 @@ func show_activation() -> void:
 	key.grab_focus()
 
 func navigate_module(name_: String) -> void:
+	if is_instance_valid(missions) and missions.running: missions.stop()
 	if is_instance_valid(lan) and lan.connected:
 		if lan.live():
 			status = "Race running. Esc withdraws; local menus cannot pause the shared clock."
@@ -1827,3 +1853,50 @@ func navigate_module(name_: String) -> void:
 		if name_!="LAN Competition": lan.disconnect_room()
 	leave_flight()
 	show_module(name_)
+
+func pause_open() -> bool:
+	return is_instance_valid(pause_dialog) and pause_dialog.visible
+
+func open_escape_menu() -> void:
+	if splash_remaining>0 or not license_memory.is_active(): return
+	if pause_open(): resume_from_menu(); return
+	pause_was_active = active
+	if not lan.connected:
+		active = false
+		if is_instance_valid(drone): drone.freeze = true
+	pause_dialog = AcceptDialog.new()
+	pause_dialog.title = "Simulator menu"
+	pause_dialog.dialog_hide_on_ok = false
+	pause_dialog.get_ok_button().text = "Resume"
+	var column := VBoxContainer.new()
+	column.custom_minimum_size = Vector2(440,190)
+	pause_dialog.add_child(column)
+	column.add_child(label_("LAN flight and clock continue while this menu is open." if lan.connected else "Flight paused. Resume when ready.",16))
+	button_("Fullscreen / Windowed",func(): DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if DisplayServer.window_get_mode()==DisplayServer.WINDOW_MODE_FULLSCREEN else DisplayServer.WINDOW_MODE_FULLSCREEN),column)
+	button_("Main menu / leave current session",func():
+		pause_dialog.hide()
+		pause_dialog.queue_free()
+		if lan.connected: lan.disconnect_room()
+		if missions.running: missions.stop()
+		leave_flight()
+		show_module("Fly"),column)
+	button_("Exit application ×",func():
+		if lan.connected: lan.disconnect_room()
+		get_tree().quit(),column)
+	pause_dialog.confirmed.connect(resume_from_menu)
+	pause_dialog.canceled.connect(resume_from_menu)
+	add_child(pause_dialog)
+	pause_dialog.popup_centered()
+
+func resume_from_menu() -> void:
+	if is_instance_valid(pause_dialog): pause_dialog.hide(); pause_dialog.queue_free()
+	if lan.connected or not in_flight or finished: return
+	if use_radio and pause_was_active:
+		remote_waiting_low = true
+		low_throttle_time = 0
+		active = false
+		drone.freeze = true
+		status = "Lower throttle fully to resume safely."
+	elif pause_was_active:
+		active = true
+		drone.freeze = false

@@ -138,3 +138,15 @@ restoration were checked. Terrain/FPV screens were rendered and inspected.
 These are cloud/Linux tests, not a claim of physical three-PC Windows/radio/
 goggles testing or Call of Duty-level visuals. Try a short keyboard LAN round
 first, then the three radios and goggles, before using strict event scoring.
+
+
+## Version 0.10 spectator and menu update
+
+Waiting and finished pilots now automatically watch the active relay pilot.
+Auto / P1 / P2 / P3 / Mine buttons select a read-only camera. Number keys 1/2/3
+select a pilot and 0 selects automatic follow. Your own flight camera always
+returns when it is your turn. These are views rendered from synchronized drone
+poses; they do not transmit another PC's desktop or grant control of its drone.
+Esc opens a menu with Resume, Windowed/Fullscreen and Exit. In LAN the flight
+and shared clock continue while this menu is open. Leaving the session or exiting
+still disconnects, so use Resume to return without withdrawing.

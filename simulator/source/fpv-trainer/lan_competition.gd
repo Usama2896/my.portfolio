@@ -3,6 +3,11 @@ const RULES = preload("res://competition_rules.gd")
 const TERRAIN = preload("res://competition_terrain.gd")
 const O = preload("res://obstacles.gd")
 const PROTOCOL = 1
+var spectator: Camera3D
+var spectator_panel: HBoxContainer
+var spectator_title: Label
+var spectated_slot := -1
+var watched_peer := 0
 var host: Node
 var rules = RULES.new()
 var connected := false
@@ -31,6 +36,11 @@ var connecting := false
 var connecting_time := 0.0
 func _ready() -> void:
 	name = "LANCompetition"
+	spectator = Camera3D.new()
+	spectator.far = 16000
+	spectator.near = 0.03
+	add_child(spectator)
+	spectator.current = false
 	options = rules.options.duplicate(true)
 	var cfg := ConfigFile.new()
 	if cfg.load("user://lan-room.cfg")==OK:
@@ -88,7 +98,7 @@ func menu() -> void:
 		if multiplayer.is_server():
 			host.button_("START — all pilots must be ready",request_start)
 			host.button_("NEW ROUND — same room",request_reset)
-		if prepared: host.button_("Return to FPV view",func(): host.menu.hide(); host.camera.current = true; host.hud.show())
+		if prepared: host.button_("Return to FPV view",func(): host.in_flight = true; host.menu.hide(); host.camera.current = true; host.hud.show())
 		host.button_("Disconnect / return to solo",disconnect_room)
 	board = host.label_("",14,"d8eadf")
 	board.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -230,6 +240,20 @@ func configure_world() -> void:
 		race_map.lan = self
 		race_map.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		host.overlay.add_child(race_map)
+		spectator_panel = HBoxContainer.new()
+		spectator_panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+		spectator_panel.offset_left = -410
+		spectator_panel.offset_right = -20
+		spectator_panel.offset_top = 195
+		host.overlay.add_child(spectator_panel)
+		host.button_("Auto",func(): spectated_slot = -1,spectator_panel)
+		for index in range(3): host.button_("P%d" % [index+1],func(): spectated_slot = index,spectator_panel)
+		host.button_("Mine",func(): spectated_slot = -2,spectator_panel)
+		spectator_title = host.label_("",15,"caffdf")
+		spectator_title.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+		spectator_title.offset_left = -410
+		spectator_title.offset_top = 172
+		host.overlay.add_child(spectator_title)
 func prepare_local(radio: bool) -> void:
 	if not connected or rules.phase!="lobby": last_message = "Wait for the host to reset the room before readying."; return
 	if not local_id in rules.players: last_message = "Waiting for host roster…"; return
@@ -313,6 +337,7 @@ func _physics_process(delta: float) -> void:
 		accumulator += delta
 		if accumulator>=0.1: accumulator = 0; publish()
 	apply_local_state()
+	update_spectator()
 	if not prepared and host.module=="LAN Competition": host.status = last_message
 	refresh_board()
 @rpc("any_peer","call_remote","unreliable_ordered",1)
@@ -372,10 +397,10 @@ func apply_local_state() -> void:
 		var target: Vector3 = rules.stations()[mini(rules.leg+1,3)]
 		overlay_marker.visible = true
 		overlay_marker.position = target+Vector3.UP*2
-		overlay_marker.text = "LZ %d · %.1f m" % [mini(rules.leg+1,3),host.drone.position.distance_to(target)]
+		overlay_marker.text = "LZ %d · %.1f m" % [mini(rules.leg+1,3),view_position().distance_to(target)]
 		host.target_label.text = "TEAM RELAY · LEG %d/3 · %s" % [mini(rules.leg+1,3),"YOUR TURN" if allowed else "WAIT — THROTTLE LOW"]
 	host.elapsed = rules.elapsed
-	host.flight_status.text = "LAN %s · %s · Esc: withdraw/disconnect · V: attitude · no local pause/restart" % ["RELAY" if options.mode==0 else "OBSTACLE",p.result]
+	host.flight_status.text = "LAN %s · %s · Esc: menu / exit · V: attitude · no local pause/restart" % ["RELAY" if options.mode==0 else "OBSTACLE",p.result]
 	if rules.phase=="countdown": host.status = "COUNTDOWN %.0f — keep throttle LOW" % ceil(rules.countdown)
 	elif rules.phase=="running": host.status = "YOUR TURN — take off and land inside marked LZ" if allowed and options.mode==0 else "YOUR TURN — follow gates in order" if allowed else "WAIT for your relay turn. Moving launch controls early disqualifies the team."
 	if rules.phase=="finished" or p.result in ["Finished","DQ"]:
@@ -400,7 +425,7 @@ func race_event(reason: String) -> void:
 func refresh_board() -> void:
 	var text := "TEAM RELAY" if options.mode==0 else "OBSTACLE RACE"
 	text += " · "+rules.phase.to_upper()+(" · %.0f to start\n" % ceil(rules.countdown) if rules.phase=="countdown" else " · %.1fs\n" % rules.elapsed)
-	if prepared and options.mode==0: text += "Next: LZ %d · %.1f m · diameter %.2f m\n" % [mini(rules.leg+1,3),host.drone.position.distance_to(rules.stations()[mini(rules.leg+1,3)]),options.radius*2]
+	if prepared and options.mode==0: text += "Next: LZ %d · %.1f m · diameter %.2f m\n" % [mini(rules.leg+1,3),view_position().distance_to(rules.stations()[mini(rules.leg+1,3)]),options.radius*2]
 	for i in range(rules.order.size()):
 		var p: Dictionary = rules.players[rules.order[i]]
 		text += "P%d %s · %s · %s\n" % [i+1,p.name,"READY" if p.ready else "NOT READY",p.result]
@@ -431,6 +456,7 @@ func update_ghost(id: int, p: Dictionary, index: int) -> void:
 		TERRAIN.label(node,"P%d %s" % [index+1,p.name],Vector3.UP*0.6,36)
 		node.position = p.position
 		ghosts[id] = node
+	ghosts[id].visible = id!=watched_peer
 	ghosts[id].position = ghosts[id].position.lerp(p.position,0.2)
 	ghosts[id].rotation = Vector3(lerp_angle(ghosts[id].rotation.x,p.rotation.x,0.2),lerp_angle(ghosts[id].rotation.y,p.rotation.y,0.2),lerp_angle(ghosts[id].rotation.z,p.rotation.z,0.2))
 func save_result() -> void:
@@ -493,6 +519,10 @@ func disconnect_room(clear_message := true) -> void:
 	ghosts.clear()
 	if is_instance_valid(room_world): room_world.queue_free()
 	if is_instance_valid(race_board): race_board.hide()
+	if is_instance_valid(spectator_panel): spectator_panel.hide(); spectator_title.hide()
+	spectator.current = false
+	spectated_slot = -1
+	watched_peer = 0
 	host.leave_flight()
 	if not backup.is_empty():
 		host.course = backup.course
@@ -528,3 +558,37 @@ func connection_fields() -> void:
 	host.field("UDP port",port,1024,65535,1,func(v): port = int(v))
 	host.button_("HOST — create room",host_room,null,true)
 	host.button_("JOIN — connect to host",join_room)
+
+func update_spectator() -> void:
+	if not is_instance_valid(spectator_panel): return
+	var viewing: bool = connected and prepared and host.in_flight
+	spectator_panel.visible = viewing
+	spectator_title.visible = viewing
+	if not viewing: return
+	var target := local_id
+	var own_turn: bool = rules.can_fly(local_id)
+	if not own_turn and spectated_slot!=-2 and not rules.order.is_empty():
+		var slot := mini(rules.leg,rules.order.size()-1) if spectated_slot<0 else mini(spectated_slot,rules.order.size()-1)
+		target = rules.order[slot]
+	for button in spectator_panel.get_children(): button.disabled = own_turn
+	if target==local_id or not target in rules.players:
+		host.camera.current = true
+		spectator_title.text = "Your flight" if own_turn else "Your view · Auto / 1 / 2 / 3 to watch"
+	else:
+		var p: Dictionary = rules.players[target]
+		var pose := Transform3D(Basis.from_euler(p.rotation),p.position+Vector3(0,0.025,0))
+		if watched_peer!=target: spectator.transform = pose
+		else: spectator.transform = spectator.transform.interpolate_with(pose,0.35)
+		spectator.fov = host.camera.fov
+		spectator.current = true
+		host.guidance.hide()
+		host.guide.hide()
+		spectator_title.text = "Watching %s · read-only" % p.name
+		host.telemetry.text = "WATCHING %s   |   LAN TIME %.1fs   |   ALT %.1fm   |   %d km/h" % [p.name,rules.elapsed,p.position.y,int(p.velocity.length()*3.6)]
+		if rules.phase!="finished": host.centre_panel.hide()
+	watched_peer = target
+	for id in ghosts:
+		if is_instance_valid(ghosts[id]): ghosts[id].visible = id!=watched_peer
+
+func view_position() -> Vector3:
+	return rules.players[watched_peer].position if watched_peer in rules.players else host.drone.position

@@ -1,10 +1,28 @@
-# AL JEHAD FPV OBSTACLE COURSE — v0.9
+# AL JEHAD FPV OBSTACLE COURSE — v0.10
 
 [Download Windows ZIP](https://github.com/Usama2896/my.portfolio/raw/refs/heads/fpv-simulator-prototype/simulator/FPVTrainer-Windows-Prototype.zip)
 
-Close the old app, extract the ZIP into a new folder, then open **AL-JEHAD-FPV/AlJehadFPV.exe**. Check **V0.9**. No Godot, VS Code, installer or Internet is required to run it. Existing calibration, saved courses and records are retained.
+Close the old app, extract the ZIP into a new folder, then open **AL-JEHAD-FPV/AlJehadFPV.exe**. Check **V0.10**. No Godot, VS Code, installer or Internet is required to run it. Existing calibration, saved courses and records are retained.
 
-## New: LAN Competition — v0.9
+## New in v0.10 — civilian camera-drone missions
+
+Open **Civilian Missions** (or the civilian button in Fly) and choose:
+
+- **Parcel Delivery:** take off, fly to the square service pad, land and hold Down / fully low throttle to settle for two seconds. Press **U** or **Unload** to place a parcel on the ground, then take off and return to Home. Physical contact, low speed, a level drone and a complete landing inside the pad are required. There is no airborne release, projectile or impact-scoring path.
+- **Landing Practice:** fly to a civilian pad and land. Review elapsed time, pad offset and descent feedback in Training Results. Practice feedback is separate from competitive FPV scoring.
+
+Both events use an original offline woodland park, ordinary camera-drone visuals, road markings, configurable 20–200 m routes and 2–8 m square pads. Choose keyboard or an already supported USB radio. Gentle level controls are enabled; solo course and preferences return on leaving. **View** switches follow / forward / landing camera. The Skydroid G12's Windows joystick compatibility remains unconfirmed; no new hardware driver or release-switch integration is claimed.
+
+**Esc** now opens Resume, Fullscreen/Windowed, Main menu and **Exit application ×**. Solo flight pauses; LAN flight and the shared clock continue. The window layout expands to wide screens, removing the old fixed-aspect side bars. F11 remains available. In relay, waiting/finished pilots automatically follow the active pilot's reconstructed FPV view. Auto / P1 / P2 / P3 / Mine buttons and 0/1/2/3 keys choose a read-only view; your own camera takes priority during your turn. This renders the shared 3D state locally, not a stream of another PC's desktop.
+
+![Civilian missions](screenshots/civilian-menu.png)
+![Woodland park flight](screenshots/civilian-flight.png)
+![Escape and Exit menu](screenshots/escape-menu.png)
+![Read-only relay camera](screenshots/spectator-p2.png)
+
+Validation: 562 Godot checks, seven radio-page checks and one native mouse-launch check passed (570 total), plus four real ENet network scenarios. The new checks include airborne-unload rejection, actual ground contact, return landing, pause, saved feedback, spectator transitions and control priority. Rendered 16:9 views were checked. Physical Windows/radio/goggles verification remains necessary. This release adds no real-world map download, weapons exercise or aerial payload release.
+
+## New: LAN Competition — v0.10
 
 **[Three-PC beginner setup guide](LAN-SETUP.md)**
 
@@ -26,11 +44,11 @@ Local v0.9 verification: 524 Godot checks, seven radio-page checks and one nativ
 
 This is a lightweight LAN competition prototype with one local pilot per PC, not single-PC split-screen. It does not implement drone-to-drone collisions, public matchmaking, host migration, in-progress reconnect or anti-cheat. Physical three-PC Windows/RadioMaster/Cobra tests are still needed. Three-process relay, two-/three-process obstacle racing and disconnect behaviour were tested over actual ENet loopback sockets in Linux.
 
-## Owner settings and activation — v0.9
+## Owner settings and activation — v0.10
 
 One-time per-PC/account activation, five-second splash, `god Mode` label and fullscreen startup. Ask the owner for the key. Existing calibration remains saved. [Step-by-step editing, online builds and technical explanation](EDITING-GUIDE.md). Edit `source/fpv-trainer/owner_settings.gd` and rebuild; saving source alone does not change an EXE. Public source means a hard-coded activation key is a casual-copy deterrent, not strong DRM.
 
-## Calibration memory — v0.9
+## Calibration memory — v0.10
 
 The same radio automatically restores its saved axis mapping, travel limits, centres and inversions. It reuses the last profile even when its USB device index or instance GUID changes, provided the radio name identifies one connected device. Exact device profiles take priority. Older matching profiles are imported without deleting calibration. With several identical radios, select the intended device and verify its live values; USB cannot reliably distinguish identical names without stable identifiers.
 

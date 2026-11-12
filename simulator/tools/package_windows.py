@@ -26,16 +26,18 @@ files = {
     'FONT-LICENSE.txt': source / 'assets/FONT-LICENSE.txt',
 }
 data = {name: path.read_bytes() for name, path in files.items()}
-data['START-HERE.txt'] = b'''AL JEHAD FPV - VERSION 0.9
+data['START-HERE.txt'] = b'''AL JEHAD FPV - VERSION 0.10
 Extract the whole folder and open AlJehadFPV.exe.
 Ask the owner for the one-time activation key for this PC/account.
 Choose Easy - Basic Guided for your first flight.
-F11 toggles fullscreen. V toggles attitude. R restarts. Esc opens menu.
+F11 toggles fullscreen. V toggles attitude. Esc opens Resume / Windowed / Exit.
+Civilian Missions: land on the pad, hold Down/low throttle to settle, U unloads
+only after two stable seconds on the ground. Then take off and return home.
 LAN Competition: three PCs, one USB radio per PC. Read LAN-SETUP.md first.
 Read EDITING-GUIDE.md to learn how to change and rebuild the source.
 No Internet, VS Code, SQL or Godot installation needed to PLAY this export.
 '''
-info = {'version': '0.9.0', 'engine': 'Godot 4.6.3', 'platform': 'Windows x86-64',
+info = {'version': '0.10.0', 'engine': 'Godot 4.6.3', 'platform': 'Windows x86-64',
         'sha256': {n: hashlib.sha256(v).hexdigest() for n, v in data.items()}}
 data['build-info.json'] = json.dumps(info, indent=2).encode()
 with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as archive:

@@ -7,7 +7,7 @@ func _process(_delta: float) -> void:
 func _draw() -> void:
 	var stations: Array[Vector3] = lan.rules.stations()
 	var target: Vector3 = stations[mini(lan.rules.leg+1,3)]+Vector3.UP*0.25
-	var camera: Camera3D = lan.host.camera
+	var camera: Camera3D = get_viewport().get_camera_3d()
 	var projected := camera.unproject_position(target) if not camera.is_position_behind(target) else Vector2(-1000,-1000)
 	var color := Color("ffdf79")
 	if Rect2(Vector2(30,250),size-Vector2(60,420)).has_point(projected):

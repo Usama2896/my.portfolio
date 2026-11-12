@@ -22,5 +22,6 @@ func _draw() -> void:
 func reference_frame() -> Vector2:
 	# The line follows the screen projection of the world horizon. The fixed
 	# diamond remains camera-centred, so bank/pitch can be judged against it.
-	var local_up: Vector3 = host.camera.global_basis.inverse()*Vector3.UP
+	var active_camera: Camera3D = get_viewport().get_camera_3d() if is_inside_tree() and host.in_flight else host.camera
+	var local_up: Vector3 = active_camera.global_basis.inverse()*Vector3.UP
 	return Vector2(atan2(local_up.x,local_up.y),clampf(-local_up.z*180,-150,150))

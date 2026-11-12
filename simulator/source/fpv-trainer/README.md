@@ -168,3 +168,13 @@ client setup. Object decoding is not enabled. This is trusted-LAN telemetry,
 not authoritative server physics or anti-cheat. Saved user course/settings are
 restored; calibration/activation stays local. New results use lan-results.jsonl.
 See ../../LAN-SETUP.md for rules, limits and setup.
+
+
+## Version 0.10 civilian missions
+
+`civilian_rules.gd` defines land-and-service and landing-practice state machines.
+`civilian_missions.gd` provides the fictional park scene, physical contact gate,
+static ground parcel placement, camera views, feedback records and restoration.
+There is no aerial release or payload trajectory. Escape now opens a solo pause /
+LAN non-pausing menu; widescreen stretch aspect is expand. LAN spectator cameras
+render remote poses read-only and yield to the local pilot during their own turn.

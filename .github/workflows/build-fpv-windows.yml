@@ -42,6 +42,8 @@ jobs:
         run: |
           godot --headless --path simulator/source/fpv-trainer --script res://tests/competition.gd
           godot --headless --path simulator/source/fpv-trainer --script res://tests/lan_controller.gd
+          godot --headless --fixed-fps 60 --path simulator/source/fpv-trainer --script res://tests/civilian.gd
+          godot --headless --path simulator/source/fpv-trainer --script res://tests/spectator_menu.gd
           python3 simulator/source/fpv-trainer/tests/lan_network.py
           FPV_TEST_MODE=obstacle python3 simulator/source/fpv-trainer/tests/lan_network.py
           FPV_TEST_MODE=obstacle FPV_TEST_PLAYERS=2 python3 simulator/source/fpv-trainer/tests/lan_network.py
