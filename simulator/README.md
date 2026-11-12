@@ -1,14 +1,36 @@
-# AL JEHAD FPV OBSTACLE COURSE — v0.8.2
+# AL JEHAD FPV OBSTACLE COURSE — v0.9
 
 [Download Windows ZIP](https://github.com/Usama2896/my.portfolio/raw/refs/heads/fpv-simulator-prototype/simulator/FPVTrainer-Windows-Prototype.zip)
 
-Close the old app, extract the ZIP into a new folder, then open **AL-JEHAD-FPV/AlJehadFPV.exe**. Check **V0.8.2**. No Godot, VS Code, installer or Internet is required to run it. Existing calibration, saved courses and records are retained.
+Close the old app, extract the ZIP into a new folder, then open **AL-JEHAD-FPV/AlJehadFPV.exe**. Check **V0.9**. No Godot, VS Code, installer or Internet is required to run it. Existing calibration, saved courses and records are retained.
 
-## Owner settings and activation — v0.8.2
+## New: LAN Competition — v0.9
+
+**[Three-PC beginner setup guide](LAN-SETUP.md)**
+
+- **Team Relay:** exactly three pilots and three drones. SP → LZ1 → LZ2 → LZ3; a settled valid landing releases the next pilot. One PC hosts and also flies. Join order assigns pilots 2 and 3.
+- **Obstacle Race:** two or three pilots race simultaneously through the host's edited course. Directional gate/section/lap progress is checked by the host; client courses are restored on leaving.
+- **Mountain valley, Desert plain and City streets** relay environments. Three independent leg lengths, 30–5000 m each, including 1 km. Geometry count remains bounded for long courses.
+- Host-configurable LZ diameter (default two feet), landing hold, QT, maximum time and scoring. Shared control level: Easy, Stabilized or Acro. Relay defaults to 100 completion + 100 landing bonus, ±1 for every full five seconds against QT.
+- Host countdown/clock, waiting-turn and landing checks, crash/false-start/outside-zone/time/disconnect rules, shared pilot board, local match history and CSV export.
+- Each PC uses its own saved keyboard/radio mapping and FPV/goggles video connection. Existing activation key and Secure Mode owner label are preserved.
+- No Internet server, SQL server or extra game installation dependency. LAN play uses built-in ENet/UDP, default port 24567. Calm conditions and no battery limit apply during competition; solo settings return on disconnect.
+
+![LAN room setup](screenshots/lan-lobby.png)
+![Relay FPV view](screenshots/lan-relay-flight.png)
+![Mountain valley](screenshots/lan-mountain.png)
+![Desert plain](screenshots/lan-desert.png)
+![City streets](screenshots/lan-city.png)
+
+Local v0.9 verification: 524 Godot checks, seven radio-page checks and one native mouse launch check passed, plus real ENet relay, two-/three-player obstacle and disconnect integration scenarios.
+
+This is a lightweight LAN competition prototype with one local pilot per PC, not single-PC split-screen. It does not implement drone-to-drone collisions, public matchmaking, host migration, in-progress reconnect or anti-cheat. Physical three-PC Windows/RadioMaster/Cobra tests are still needed. Three-process relay, two-/three-process obstacle racing and disconnect behaviour were tested over actual ENet loopback sockets in Linux.
+
+## Owner settings and activation — v0.9
 
 One-time per-PC/account activation, five-second splash, `god Mode` label and fullscreen startup. Ask the owner for the key. Existing calibration remains saved. [Step-by-step editing, online builds and technical explanation](EDITING-GUIDE.md). Edit `source/fpv-trainer/owner_settings.gd` and rebuild; saving source alone does not change an EXE. Public source means a hard-coded activation key is a casual-copy deterrent, not strong DRM.
 
-## Calibration memory — v0.8.2
+## Calibration memory — v0.9
 
 The same radio automatically restores its saved axis mapping, travel limits, centres and inversions. It reuses the last profile even when its USB device index or instance GUID changes, provided the radio name identifies one connected device. Exact device profiles take priority. Older matching profiles are imported without deleting calibration. With several identical radios, select the intended device and verify its live values; USB cannot reliably distinguish identical names without stable identifiers.
 
@@ -49,8 +71,8 @@ Cobra model inputs must be checked in its manual. AV-only goggles generally requ
 
 Faster adjustable yaw; upward-exit photo-based U-tunnel; real collision feedback and checkpoint recovery; God Mode; 17 obstacle shapes; individual zigzag pole positions; drone sizes; XYZ/rotation/spacing editor; JSON import/export; visibility/FOV controls; local sessions/CSV; USB mapping, calibration and diagnostics. Records remain in the existing DTC Flight Lab user-data directory.
 
-## Validation
+## Earlier single-player validation
 
-471 checks passed: 463 Godot checks plus seven offline radio-page checks and one native mouse launch check. These include 20 new environment, battery, route, difficulty and attitude checks plus 443 existing checks. The new tests verify battery cutoff in God Mode, pause, recharge, wind direction, setting persistence, collision-free ground route, mode order and the attitude line's bank/pitch direction. Rendered route, tilt and storm screens were inspected. Windows export is checked separately; a physical Windows/Cobra/TX16 test remains necessary.
+The v0.8 release passed 471 checks: 463 Godot checks plus seven offline radio-page checks and one native mouse launch check. These include 20 new environment, battery, route, difficulty and attitude checks plus 443 existing checks. The new tests verify battery cutoff in God Mode, pause, recharge, wind direction, setting persistence, collision-free ground route, mode order and the attitude line's bank/pitch direction. Rendered route, tilt and storm screens were inspected. Windows export is checked separately; a physical Windows/Cobra/TX16 test remains necessary.
 
 [Development guide](source/fpv-trainer/README.md)

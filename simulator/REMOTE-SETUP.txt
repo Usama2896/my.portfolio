@@ -200,3 +200,9 @@ Windows account. You do not need to map the sticks before every flight.
 Use Map and Confirm only when you want to change a mapping.
 Lowering throttle to arm is still required; it is not recalibration.
 A different PC or Windows account needs its own initial calibration.
+
+VERSION 0.9 — LAN COMPETITION
+Use one PC and USB radio per pilot. All PCs join one local router/switch.
+Open LAN Competition. One PC hosts; the others join its local IPv4 address.
+Everyone readies with keyboard or remote; keep throttle low until YOUR TURN.
+See LAN-SETUP.md in the Windows package for the full three-PC setup and rules.

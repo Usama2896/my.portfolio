@@ -29,6 +29,7 @@ jobs:
           echo 'da606b61c10157844f8300172df374472665f95015495cb1a7cd132c40ede404faa96cc1016a4b9662db9909ddea69632c4948b2cd11163438dad4808881fb68  templates.tpz' | sha512sum -c -
           unzip -q engine.zip
           chmod +x Godot_v4.6.3-stable_linux.x86_64
+          ln -s "$RUNNER_TEMP/godot-download/Godot_v4.6.3-stable_linux.x86_64" "$RUNNER_TEMP/godot-download/godot"
           echo "$RUNNER_TEMP/godot-download" >> "$GITHUB_PATH"
           mkdir -p "$HOME/.local/share/godot/export_templates/4.6.3.stable"
           unzip -j -q templates.tpz 'templates/windows_release_x86_64.exe' 'templates/windows_debug_x86_64.exe' -d "$HOME/.local/share/godot/export_templates/4.6.3.stable"
@@ -37,6 +38,14 @@ jobs:
           Godot_v4.6.3-stable_linux.x86_64 --headless --path simulator/source/fpv-trainer --editor --import
           mkdir -p simulator/source/fpv-trainer/build/al-jehad-windows
           Godot_v4.6.3-stable_linux.x86_64 --headless --path simulator/source/fpv-trainer --export-release 'Windows Desktop'
+      - name: Check relay rules and real LAN transport
+        run: |
+          godot --headless --path simulator/source/fpv-trainer --script res://tests/competition.gd
+          godot --headless --path simulator/source/fpv-trainer --script res://tests/lan_controller.gd
+          python3 simulator/source/fpv-trainer/tests/lan_network.py
+          FPV_TEST_MODE=obstacle python3 simulator/source/fpv-trainer/tests/lan_network.py
+          FPV_TEST_MODE=obstacle FPV_TEST_PLAYERS=2 python3 simulator/source/fpv-trainer/tests/lan_network.py
+          FPV_TEST_MODE=disconnect python3 simulator/source/fpv-trainer/tests/lan_network.py
       - name: Package app and instructions
         run: python3 simulator/tools/package_windows.py --output dist/AL-JEHAD-FPV-Windows.zip
       - uses: actions/upload-artifact@v4

@@ -24,7 +24,7 @@ Open this exact file in the repository:
 
 `simulator/source/fpv-trainer/owner_settings.gd`
 
-It currently contains:
+The original example below shows the format; your owner values may already differ:
 
 ```gdscript
 extends RefCounted

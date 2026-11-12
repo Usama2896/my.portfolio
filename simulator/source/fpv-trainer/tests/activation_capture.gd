@@ -14,7 +14,7 @@ func run() -> void:
 	key.text = "wrong"
 	dialog.confirmed.emit()
 	assert(not app.license_memory.is_active() and dialog.visible)
-	key.text = "TWP29"
+	key.text = load("res://owner_settings.gd").ACTIVATION_KEY
 	dialog.confirmed.emit()
 	await process_frame
 	assert(app.license_memory.is_active())

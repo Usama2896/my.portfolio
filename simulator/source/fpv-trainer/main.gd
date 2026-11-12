@@ -1,5 +1,7 @@
 extends Node3D
 const OWNER = preload("res://owner_settings.gd")
+var lan: Node3D
+var solo_world_nodes: Array[Node] = []
 var license_memory = preload("res://activation.gd").new()
 const GUIDANCE = preload("res://guidance.gd")
 const GUIDANCE_HUD = preload("res://flight_guidance.gd")
@@ -133,6 +135,8 @@ func _ready() -> void:
 	Engine.max_fps = 60
 	course = load_course()
 	WORLD.build(self)
+	for item in get_children():
+		if item is MeshInstance3D or item is CollisionObject3D: solo_world_nodes.append(item)
 	apply_graphics()
 	create_motor_audio()
 	gate_root = Node3D.new()
@@ -151,6 +155,9 @@ func _ready() -> void:
 	overview.look_at(Vector3(-7,0,-8))
 	overview.fov = 58
 	overview.current = true
+	lan = preload("res://lan_competition.gd").new()
+	lan.host = self
+	add_child(lan)
 	build_interface()
 	var attitude = preload("res://attitude.gd").new()
 	attitude.host = self
@@ -326,8 +333,8 @@ func build_interface() -> void:
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top_row.add_child(spacer)
-	for name_ in ["Fly","Course Editor","Drone & Controls","Training Results"]:
-		button_(name_,func(): leave_flight(); show_module(name_),top_row)
+	for name_ in ["Fly","Course Editor","Drone & Controls","Training Results","LAN Competition"]:
+		button_(name_,func(): navigate_module(name_),top_row)
 	menu = PanelContainer.new()
 	menu.position = Vector2(20,94)
 	menu.set_anchors_and_offsets_preset(Control.PRESET_LEFT_WIDE)
@@ -350,7 +357,7 @@ func build_interface() -> void:
 	notice.offset_right = -20
 	notice.offset_top = -35
 	overlay.add_child(notice)
-	version_label = label_("OFFLINE  /  V0.8.2   •   APPROXIMATE COURSE",12,"e0ead7")
+	version_label = label_("OFFLINE  /  V0.9   •   APPROXIMATE COURSE",12,"e0ead7")
 	version_label.position = Vector2(450,96)
 	overlay.add_child(version_label)
 	hud = PanelContainer.new()
@@ -396,6 +403,7 @@ func show_module(name_: String) -> void:
 		"Course Editor": editor_menu()
 		"Drone & Controls": controls_menu()
 		"Training Results": results_menu()
+		"LAN Competition": lan.menu()
 
 func fly_menu() -> void:
 	content.add_child(label_("Choose how\nyou fly.",36,"f3f1dd"))
@@ -785,7 +793,7 @@ func load_radio() -> void:
 func save_settings() -> bool:
 	var cfg := ConfigFile.new()
 	cfg.load(PROFILE_PATH)
-	for key in ["fov","rates","mass","wind","assisted","use_radio","deadzone","trainee","motor_sound","shadows","drone_category","drone_span","preferred_radio_guid","preferred_radio_name","practice_god_mode","high_visibility","show_all_labels","practice_stabilized","practice_basic","yaw_rate","basic_speed","weather","wind_direction","gust_strength","scene_brightness","ground_route","battery_enabled","battery_minutes","attitude_enabled","vibration_enabled","goggles_enabled"]: cfg.set_value("flight",key,get(key))
+	for key in ["fov","rates","mass","wind","assisted","use_radio","deadzone","trainee","motor_sound","shadows","drone_category","drone_span","preferred_radio_guid","preferred_radio_name","practice_god_mode","high_visibility","show_all_labels","practice_stabilized","practice_basic","yaw_rate","basic_speed","weather","wind_direction","gust_strength","scene_brightness","ground_route","battery_enabled","battery_minutes","attitude_enabled","vibration_enabled","goggles_enabled"]: cfg.set_value("flight",key,lan.backup[key] if is_instance_valid(lan) and lan.connected and lan.backup.has(key) else get(key))
 	if joystick>=0:
 		var stored_axes: Array = calibration_snapshot.axes if calibrating>=0 and not calibration_snapshot.is_empty() else axes
 		var stored_ranges: Array = calibration_snapshot.endpoints if calibrating>=0 and not calibration_snapshot.is_empty() else endpoints
@@ -956,6 +964,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		save_settings()
 	if event.keycode == KEY_F11:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if DisplayServer.window_get_mode()==DisplayServer.WINDOW_MODE_FULLSCREEN else DisplayServer.WINDOW_MODE_FULLSCREEN)
+	if is_instance_valid(lan) and lan.connected and event.keycode in [KEY_ESCAPE,KEY_ENTER,KEY_R]:
+		if event.keycode==KEY_ESCAPE: lan.disconnect_room()
+		else: status = "LAN round uses host timing. Local pause/restart is disabled."
+		return
 	if event.keycode == KEY_ESCAPE:
 		leave_flight()
 		show_module("Fly")
@@ -1048,7 +1060,7 @@ func _physics_process(delta: float) -> void:
 		check_gate(previous_position,drone.position)
 		previous_position = drone.position
 
-		if drone.position.y < -3 or drone.position.y>80 or absf(drone.position.x)>100 or absf(drone.position.z)>100:
+		if drone.position.y < -3 or drone.position.y>(500 if lan.connected else 80) or absf(drone.position.x)>(20000 if lan.connected else 100) or absf(drone.position.z)>(20000 if lan.connected else 100):
 			finish_run("Outside training area")
 	if in_flight and not finished and assessment and elapsed>float(course.cutoff_seconds): finish_run("Disqualified: time limit")
 	update_flight_centre()
@@ -1072,6 +1084,7 @@ func _physics_process(delta: float) -> void:
 	else: guide.visible = false
 
 func check_gate(from: Vector3, to: Vector3) -> void:
+	if is_instance_valid(lan) and lan.connected and lan.prepared: return
 	if finished or not crash_phase.is_empty() or remote_waiting_low: return
 	var gate := gates[next_gate]
 	var data: Dictionary = course.gates[next_gate]
@@ -1109,6 +1122,9 @@ func on_impact(strength: float, normal: Vector3) -> void:
 	shake_strength = clampf(strength*0.012,0.02,0.10)
 	play_impact_sound(strength)
 	experience.vibrate(strength)
+	if is_instance_valid(lan) and lan.connected and lan.prepared:
+		if strength>=3.5: lan.notify_event("Crash")
+		return
 	if not assessment and practice_god_mode:
 		status = "god Mode — contact, no crash or reset."
 		return
@@ -1131,6 +1147,9 @@ func on_impact(strength: float, normal: Vector3) -> void:
 	if assessment and crashes==1: status += " First-crash penalty: −20."
 
 func finish_run(reason: String) -> void:
+	if is_instance_valid(lan) and lan.connected and lan.prepared:
+		lan.notify_event(reason)
+		return
 	if finished: return
 	active = false
 	remote_waiting_low = false
@@ -1380,6 +1399,7 @@ func poll_radio() -> void:
 		active = false
 		remote_waiting_low = false
 		drone.freeze = true
+		if is_instance_valid(lan) and lan.connected and lan.prepared: remote_waiting_low = joystick>=0
 		status = "Remote connection changed. Check the selected device and throttle before restarting."
 	calibrating = -1
 	previous_joystick = joystick
@@ -1522,7 +1542,7 @@ func show_splash() -> void:
 	splash_progress.add_theme_stylebox_override("background",style("1c3e33",2,0))
 	splash_progress.add_theme_stylebox_override("fill",style("79e5c2",2,0))
 	column.add_child(splash_progress)
-	var footer := label_("OFFLINE FLIGHT SIMULATOR   /   VERSION 0.8.2",12,"79988c")
+	var footer := label_("OFFLINE FLIGHT SIMULATOR   /   VERSION 0.9",12,"79988c")
 	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(footer)
 
@@ -1580,7 +1600,7 @@ func build_impact_interface() -> void:
 	row.add_theme_constant_override("separation",10)
 	column.add_child(row)
 	button_("Invert Throttle",func(): inversions[3] = not inversions[3]; low_throttle_time = 0; save_settings(),row)
-	button_("Open Controls",func(): leave_flight(); show_module("Drone & Controls"),row)
+	button_("Open Controls",func(): navigate_module("Drone & Controls"),row)
 	button_("Copy Remote Report",copy_remote_report,row)
 	centre_panel.visible = false
 
@@ -1682,7 +1702,7 @@ func launch_from_popup() -> void:
 	launch_remote()
 
 func remote_report() -> String:
-	var rows := PackedStringArray([APP_TITLE+" v0.8 REMOTE REPORT","Device: "+(controller.device_name(joystick) if joystick>=0 else "NOT CONNECTED"),"Setup issue: "+remote_configuration_issue(),"State: in_flight=%s active=%s waiting_low=%s" % [in_flight,active,remote_waiting_low],"Last action: "+last_launch_action])
+	var rows := PackedStringArray([APP_TITLE+" v"+str(ProjectSettings.get_setting("application/config/version"))+" REMOTE REPORT","Device: "+(controller.device_name(joystick) if joystick>=0 else "NOT CONNECTED"),"Setup issue: "+remote_configuration_issue(),"State: in_flight=%s active=%s waiting_low=%s" % [in_flight,active,remote_waiting_low],"Last action: "+last_launch_action])
 	for i in range(4):
 		rows.append("%s axis=%d raw=%+.3f scaled=%+.3f inverted=%s endpoints=%s centre=%.3f" % [["Roll","Pitch","Yaw","Throttle"][i],axes[i],controller.axis(joystick,axes[i]) if joystick>=0 else 0,radio_axis(i),inversions[i],str(endpoints[i]),centers[i]])
 	return "\n".join(rows)
@@ -1798,3 +1818,12 @@ func show_activation() -> void:
 	add_child(dialog)
 	dialog.popup_centered()
 	key.grab_focus()
+
+func navigate_module(name_: String) -> void:
+	if is_instance_valid(lan) and lan.connected:
+		if lan.live():
+			status = "Race running. Esc withdraws; local menus cannot pause the shared clock."
+			return
+		if name_!="LAN Competition": lan.disconnect_room()
+	leave_flight()
+	show_module(name_)

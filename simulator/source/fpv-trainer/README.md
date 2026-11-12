@@ -153,3 +153,18 @@ optional native gamepad rumble. `attitude.gd` draws the world-up-derived moving
 reference independently of Basic guidance. Settings remain in the existing
 profile, preserving device calibration and courses. Assessment wind stays calm;
 battery is an explicit configurable option that applies to all modes.
+
+
+## Version 0.9 LAN competition
+
+`lan_competition.gd` is a separate ENet room controller (one host plus up to two
+clients). `competition_rules.gd` owns host-authoritative sequencing, clock,
+landing/size checks, gate crossings, scoring and ranking. Terrain and map/target
+HUD are in `competition_terrain.gd` and `competition_hud.gd`. Pilot physics/input
+remains local; validated position reports use unreliable ordered channel 1 and
+host snapshots use reliable channel 2. Reliable room/event RPCs use channel 0.
+RPCs identify pilots by sender ID. Host course/config validation happens before
+client setup. Object decoding is not enabled. This is trusted-LAN telemetry,
+not authoritative server physics or anti-cheat. Saved user course/settings are
+restored; calibration/activation stays local. New results use lan-results.jsonl.
+See ../../LAN-SETUP.md for rules, limits and setup.

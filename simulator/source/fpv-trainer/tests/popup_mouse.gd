@@ -6,6 +6,8 @@ var frames := 0
 var ready := false
 func _initialize() -> void: call_deferred("setup")
 func setup() -> void:
+	var license_ = load("res://activation.gd").new()
+	license_.activate(load("res://owner_settings.gd").ACTIVATION_KEY)
 	app = load("res://main.tscn").instantiate()
 	root.add_child(app)
 	app.splash_remaining = 0
