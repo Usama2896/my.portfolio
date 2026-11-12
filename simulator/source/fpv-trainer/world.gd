@@ -39,6 +39,10 @@ static func build(root: Node3D) -> void:
 	ground.material_override = grass
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 714
+	# Civilian sports launch apron, road edges and existing start grid.
+	O.box(root,Vector3(0,-0.025,4),Vector3(8,0.02,12),Color("3b4947"),false)
+	for side in [-1,1]: O.box(root,Vector3(side*3.7,-0.01,4),Vector3(0.08,0.008,11.5),Color("e4dfbf"),false)
+	for z in [5.0,7.0,9.0]: O.box(root,Vector3(0,-0.01,z),Vector3(0.12,0.008,0.9),Color("e4dfbf"),false)
 	# White perimeter, path and start grid.
 	for x in [-38,22]: O.box(root,Vector3(x,-0.025,-8),Vector3(0.07,0.03,60),Color("c8c5a0"),false)
 	for z in [-38,22]: O.box(root,Vector3(-8,-0.025,z),Vector3(60,0.03,0.07),Color("c8c5a0"),false)

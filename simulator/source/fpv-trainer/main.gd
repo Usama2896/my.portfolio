@@ -1003,6 +1003,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		previous_position = drone.position
 
 func key_axis(positive: Key, negative: Key) -> float:
+	if pause_open(): return 0.0
 	return float(Input.is_physical_key_pressed(positive))-float(Input.is_physical_key_pressed(negative))
 
 func _physics_process(delta: float) -> void:

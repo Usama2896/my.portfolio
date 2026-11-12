@@ -372,6 +372,7 @@ func apply_local_state() -> void:
 	var allowed := rules.can_fly(local_id)
 	if rules.phase=="countdown" or (rules.phase=="running" and not allowed and p.result=="Waiting"):
 		var attempted := Input.is_physical_key_pressed(KEY_UP) or Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_D)
+		if host.pause_open() and not local_input: attempted = false
 		if local_input: attempted = host.joystick>=0 and (host.radio_axis(3)+1)/2>0.15
 		if attempted: notify_event("False start before assigned relay turn")
 	if allowed and last_turn!=rules.leg:
@@ -565,6 +566,7 @@ func update_spectator() -> void:
 	spectator_panel.visible = viewing
 	spectator_title.visible = viewing
 	if not viewing: return
+	if rules.phase=="running" and local_id in rules.players and rules.players[local_id].result=="Finished": host.centre_panel.hide()
 	var target := local_id
 	var own_turn: bool = rules.can_fly(local_id)
 	if not own_turn and spectated_slot!=-2 and not rules.order.is_empty():

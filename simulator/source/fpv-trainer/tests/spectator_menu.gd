@@ -48,9 +48,19 @@ func run() -> void:
 	app.open_escape_menu()
 	check(app.pause_open(),"Escape menu opens in LAN")
 	check(not app.pause_dialog.find_children("*","Button",true,false).filter(func(b): return b.text=="Exit application ×").is_empty(),"visible exit button exists")
+	var menu_key := InputEventKey.new()
+	menu_key.physical_keycode = KEY_UP
+	menu_key.pressed = true
+	Input.parse_input_event(menu_key.duplicate())
+	check(app.key_axis(KEY_UP,KEY_DOWN)==0,"menu navigation does not drive keyboard flight")
+	lan.rules.leg = 1
+	lan.rules.players[1].result = "Waiting"
 	var before: float = lan.rules.elapsed
 	lan._physics_process(0.25)
 	check(lan.connected and lan.rules.elapsed>before,"Escape menu does not disconnect or pause shared clock")
+	check(lan.rules.phase=="running","menu navigation cannot cause a keyboard false start")
+	menu_key.pressed = false
+	Input.parse_input_event(menu_key.duplicate())
 	check(lan.rules.players[2].position==previous,"spectating does not alter another player's controls")
 	app.resume_from_menu()
 	check(lan.connected,"Resume preserves LAN room")
